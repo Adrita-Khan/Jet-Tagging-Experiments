@@ -1,0 +1,2 @@
+Data/JetClass_example_100k.root filter=lfs diff=lfs merge=lfs -text
+Data/JetClass_example_100k.csv filter=lfs diff=lfs merge=lfs -text
