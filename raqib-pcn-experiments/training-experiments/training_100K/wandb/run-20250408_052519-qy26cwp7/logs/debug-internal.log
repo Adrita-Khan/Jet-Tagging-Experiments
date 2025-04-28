@@ -1,0 +1,15 @@
+{"time":"2025-04-08T05:25:19.675323892Z","level":"INFO","msg":"stream: starting","core version":"0.19.9","symlink path":"/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/wandb/run-20250408_052519-qy26cwp7/logs/debug-core.log"}
+{"time":"2025-04-08T05:25:20.208566942Z","level":"INFO","msg":"created new stream","id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:20.208622875Z","level":"INFO","msg":"stream: started","id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:20.208651111Z","level":"INFO","msg":"handler: started","stream_id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:20.208664978Z","level":"INFO","msg":"sender: started","stream_id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:20.209019417Z","level":"INFO","msg":"writer: Do: started","stream_id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:20.610657947Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-04-08T05:25:33.76230044Z","level":"INFO","msg":"stream: closing","id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:33.762335891Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-04-08T05:25:33.762378549Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-04-08T05:25:35.397126213Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-04-08T05:25:35.865835668Z","level":"INFO","msg":"handler: closed","stream_id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:35.865883823Z","level":"INFO","msg":"writer: Close: closed","stream_id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:35.865898172Z","level":"INFO","msg":"sender: closed","stream_id":"qy26cwp7"}
+{"time":"2025-04-08T05:25:35.865957498Z","level":"INFO","msg":"stream: closed","id":"qy26cwp7"}

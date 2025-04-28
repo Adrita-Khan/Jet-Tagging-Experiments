@@ -12,10 +12,14 @@ pandas
 pickle5
 scikit-learn
 scikit-plot
-scipy
+scipy==1.9.3
 seaborn
 tqdm
 uproot
+wandb
+gputil
+
+
 # torch
 # torchvision
 

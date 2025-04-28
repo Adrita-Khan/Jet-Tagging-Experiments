@@ -1,0 +1,9 @@
+Invalid selection. Erroring out!
+Traceback (most recent call last):
+  File "/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/GNNVM.py", line 254, in <module>
+    for name, param in model.named_parameters():
+NameError: name 'model' is not defined
+Traceback (most recent call last):
+  File "/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/GNNVM.py", line 254, in <module>
+    for name, param in model.named_parameters():
+NameError: name 'model' is not defined

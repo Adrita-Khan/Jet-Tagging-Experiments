@@ -1,0 +1,94 @@
+conv1.linear.weight: torch.float32
+conv1.linear.bias: torch.float32
+conv2.linear.weight: torch.float32
+conv2.linear.bias: torch.float32
+conv3.linear.weight: torch.float32
+conv3.linear.bias: torch.float32
+fc.weight: torch.float32
+fc.bias: torch.float32
+  0%|                                                                                                                                                                                                                                        | 0/2499 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+  dgl_warning(
+                                                                                                                                                                                                                                                                      
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 1 - Training Loss=28276.331936787778 - Validation Loss=35316.97988069363 - Training Accuracy=0.10219087635054022 - Validation Accuracy=0.09375
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 2 - Training Loss=48641.4196564803 - Validation Loss=16066.845371620777 - Training Accuracy=0.0975140056022409 - Validation Accuracy=0.11458333333333333
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 3 - Training Loss=30405.140078186465 - Validation Loss=16154.749430699227 - Training Accuracy=0.10206582633053221 - Validation Accuracy=0.09655448717948718
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 4 - Training Loss=32815.909655862735 - Validation Loss=24625.154608037228 - Training Accuracy=0.09835184073629452 - Validation Accuracy=0.10016025641025642
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 5 - Training Loss=23606.02953622655 - Validation Loss=23309.59845414987 - Training Accuracy=0.0976390556222489 - Validation Accuracy=0.1187900641025641
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 6 - Training Loss=32139.138007577585 - Validation Loss=17092.30136501942 - Training Accuracy=0.10304121648659464 - Validation Accuracy=0.10336538461538461
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 7 - Training Loss=20789.372400692628 - Validation Loss=26358.236423191353 - Training Accuracy=0.10104041616646658 - Validation Accuracy=0.09845753205128205
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 8 - Training Loss=20149.45193326583 - Validation Loss=10017.680861729077 - Training Accuracy=0.10262855142056823 - Validation Accuracy=0.09735576923076923
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 9 - Training Loss=14239.069452460932 - Validation Loss=26526.67896138017 - Training Accuracy=0.09512555022008803 - Validation Accuracy=0.10236378205128205
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 10 - Training Loss=20547.687619827233 - Validation Loss=12636.350761985168 - Training Accuracy=0.10765556222488995 - Validation Accuracy=0.08994391025641026
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 11 - Training Loss=22674.156025360564 - Validation Loss=33670.11421748308 - Training Accuracy=0.10106542617046818 - Validation Accuracy=0.109375
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 12 - Training Loss=22364.487068990176 - Validation Loss=52309.75175938163 - Training Accuracy=0.10404161664665866 - Validation Accuracy=0.10667067307692307
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 13 - Training Loss=19106.373902603264 - Validation Loss=9524.021256187023 - Training Accuracy=0.1057548019207683 - Validation Accuracy=0.09134615384615384
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 14 - Training Loss=22913.851401333715 - Validation Loss=11130.961261730929 - Training Accuracy=0.10715536214485795 - Validation Accuracy=0.10647035256410256
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 15 - Training Loss=19523.0005090583 - Validation Loss=38542.379268290904 - Training Accuracy=0.10331632653061225 - Validation Accuracy=0.10647035256410256
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 16 - Training Loss=18080.182631913354 - Validation Loss=31441.506718994715 - Training Accuracy=0.10060274109643857 - Validation Accuracy=0.10306490384615384
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 17 - Training Loss=25396.81264498855 - Validation Loss=13290.584711926105 - Training Accuracy=0.10012755102040816 - Validation Accuracy=0.11708733974358974
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 18 - Training Loss=20855.920628360578 - Validation Loss=17906.999894776407 - Training Accuracy=0.10024009603841537 - Validation Accuracy=0.09194711538461539
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 19 - Training Loss=23571.120759798174 - Validation Loss=25072.035454368743 - Training Accuracy=0.09653861544617848 - Validation Accuracy=0.10526842948717949
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 20 - Training Loss=28148.27252148046 - Validation Loss=32154.575350168423 - Training Accuracy=0.10097789115646258 - Validation Accuracy=0.09294871794871795
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 21 - Training Loss=24854.73879982825 - Validation Loss=22298.482929352 - Training Accuracy=0.10044017607042817 - Validation Accuracy=0.10036057692307693
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 22 - Training Loss=28108.573681377515 - Validation Loss=40651.63185764276 - Training Accuracy=0.1015906362545018 - Validation Accuracy=0.10366586538461539
+Saved Model to file modelSaveFiles/JetLevelPCN.pt
+Epoch 23 - Training Loss=31310.49426683496 - Validation Loss=19542.367566435 - Training Accuracy=0.0940251100440176 - Validation Accuracy=0.09505208333333333
+Convergence achieved at epoch 23. Stopping training.
+  dgl_warning(
+/media/drive1/jettag/env_jet/lib/python3.10/site-packages/sklearn/utils/deprecation.py:95: FutureWarning: Function plot_roc_curve is deprecated; This will be removed in v0.5.0. Please use scikitplot.metrics.plot_roc instead.                                      
+[[0.00791266 0.00480769 0.00550881 0.00590946 0.00560897 0.00550881
+  0.00580929 0.00580929 0.00520833 0.00600962]
+ [0.01201923 0.00761218 0.00841346 0.00941506 0.01021635 0.01001603
+  0.00981571 0.01111779 0.00811298 0.01081731]
+ [0.00270433 0.00080128 0.0010016  0.00140224 0.00110176 0.00140224
+  0.0015024  0.00170272 0.00120192 0.00180288]
+ [0.0083133  0.00440705 0.00420673 0.00530849 0.00520833 0.00540865
+  0.00460737 0.00701122 0.00390625 0.00530849]
+ [0.01091747 0.00741186 0.00490785 0.00711138 0.00691106 0.00771234
+  0.00791266 0.01071715 0.00590946 0.0093149 ]
+ [0.00340545 0.0015024  0.00200321 0.00180288 0.00200321 0.00200321
+  0.00330529 0.00300481 0.00180288 0.00260417]
+ [0.00030048 0.00020032 0.         0.         0.00020032 0.00020032
+  0.00030048 0.00020032 0.0005008  0.0005008 ]
+ [0.00961538 0.00490785 0.00580929 0.0068109  0.00590946 0.0088141
+  0.00500801 0.0088141  0.00560897 0.00691106]
+ [0.00550881 0.00210337 0.00370593 0.00360577 0.00420673 0.00390625
+  0.00330529 0.00510817 0.00180288 0.00350561]
+ [0.04306891 0.06770833 0.07011218 0.05969551 0.05598958 0.05068109
+  0.05248397 0.04877804 0.06790865 0.04997997]]
+  warnings.warn(msg, category=FutureWarning)
+                     Accuracy  Precision    Recall  Specificity
+TTBar-Testing        0.853966   0.076255  0.136207     0.898235
+TTBarLep-Testing     0.816206   0.075025  0.078029     0.896004
+WToQQ-Testing        0.881711   0.009479  0.068493     0.893779
+ZToQQ-Testing        0.855869   0.052527  0.098881     0.898815
+ZJetsToNuNu-Testing  0.837640   0.070988  0.087675     0.901816
+HToBB-Testing        0.884916   0.020942  0.085470     0.904103
+HToCC-Testing        0.904147   0.003195  0.125000     0.906024
+HToGG-Testing        0.847155   0.086190  0.129222     0.899710
+HToWW2Q1L-Testing    0.864884   0.017682  0.049046     0.896017
+HToWW4Q-Testing      0.436799   0.516563  0.088240     0.892123
+Micro Avg            0.818329   0.092885  0.094626     0.898663
+Macro Avg            0.818329   0.092885  0.094626     0.898663

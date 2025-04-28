@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/GNNVM.py", line 225, in <module>
+    wandb.watch(model, log='all', log_freq=100)
+NameError: name 'model' is not defined
+Traceback (most recent call last):
+  File "/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/GNNVM.py", line 225, in <module>
+    wandb.watch(model, log='all', log_freq=100)
+NameError: name 'model' is not defined

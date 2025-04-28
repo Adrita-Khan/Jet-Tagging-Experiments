@@ -1,0 +1,16 @@
+{"time":"2025-04-08T05:51:31.063235923Z","level":"INFO","msg":"stream: starting","core version":"0.19.9","symlink path":"/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/wandb/run-20250408_055131-jzbesxek/logs/debug-core.log"}
+{"time":"2025-04-08T05:51:31.598645387Z","level":"INFO","msg":"created new stream","id":"jzbesxek"}
+{"time":"2025-04-08T05:51:31.59870374Z","level":"INFO","msg":"stream: started","id":"jzbesxek"}
+{"time":"2025-04-08T05:51:31.598720474Z","level":"INFO","msg":"handler: started","stream_id":"jzbesxek"}
+{"time":"2025-04-08T05:51:31.598717705Z","level":"INFO","msg":"sender: started","stream_id":"jzbesxek"}
+{"time":"2025-04-08T05:51:31.59874836Z","level":"INFO","msg":"writer: Do: started","stream_id":"jzbesxek"}
+{"time":"2025-04-08T05:51:31.966656543Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-04-08T06:01:44.266249195Z","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raqib03/PCN-100K-500/jzbesxek/file_stream\": dial tcp 35.186.228.49:443: connect: connection timed out"}
+{"time":"2025-04-08T06:23:22.159895836Z","level":"INFO","msg":"stream: closing","id":"jzbesxek"}
+{"time":"2025-04-08T06:23:22.159923747Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-04-08T06:23:22.15996324Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-04-08T06:23:23.858821916Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-04-08T06:23:24.33114872Z","level":"INFO","msg":"handler: closed","stream_id":"jzbesxek"}
+{"time":"2025-04-08T06:23:24.331200837Z","level":"INFO","msg":"writer: Close: closed","stream_id":"jzbesxek"}
+{"time":"2025-04-08T06:23:24.3312127Z","level":"INFO","msg":"sender: closed","stream_id":"jzbesxek"}
+{"time":"2025-04-08T06:23:24.331287869Z","level":"INFO","msg":"stream: closed","id":"jzbesxek"}

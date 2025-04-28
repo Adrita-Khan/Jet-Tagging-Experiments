@@ -1,0 +1,168 @@
+conv1.linear.weight: torch.float32
+conv1.linear.bias: torch.float32
+conv2.linear.weight: torch.float32
+conv2.linear.bias: torch.float32
+conv3.linear.weight: torch.float32
+conv3.linear.bias: torch.float32
+fc.weight: torch.float32
+fc.bias: torch.float32
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 1 - Training Loss=1473.2838244315906 - Validation Loss=1132.1541595458984 - Training Accuracy=0.11010116185897435 - Validation Accuracy=0.115234375
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 2 - Training Loss=1090.953842554337 - Validation Loss=1349.5922088623047 - Training Accuracy=0.1092998798076923 - Validation Accuracy=0.10791015625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 3 - Training Loss=979.1968415089143 - Validation Loss=793.3009796142578 - Training Accuracy=0.10688351362179487 - Validation Accuracy=0.1090087890625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 4 - Training Loss=926.8820045666816 - Validation Loss=2107.7293701171875 - Training Accuracy=0.10911207932692307 - Validation Accuracy=0.1044921875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 5 - Training Loss=917.6225171211438 - Validation Loss=928.9738616943359 - Training Accuracy=0.10950020032051282 - Validation Accuracy=0.1085205078125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 6 - Training Loss=633.423477368477 - Validation Loss=704.2743148803711 - Training Accuracy=0.10903695913461539 - Validation Accuracy=0.1029052734375
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 7 - Training Loss=510.51780818058893 - Validation Loss=934.0054626464844 - Training Accuracy=0.10464242788461539 - Validation Accuracy=0.0986328125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 8 - Training Loss=442.7099323761769 - Validation Loss=717.6175155639648 - Training Accuracy=0.1043544671474359 - Validation Accuracy=0.1019287109375
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 9 - Training Loss=242.51599443875827 - Validation Loss=639.417667388916 - Training Accuracy=0.10730919471153846 - Validation Accuracy=0.103759765625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 10 - Training Loss=160.49340057373047 - Validation Loss=480.7383155822754 - Training Accuracy=0.10576923076923077 - Validation Accuracy=0.096923828125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 11 - Training Loss=103.38666837643355 - Validation Loss=763.8625946044922 - Training Accuracy=0.10709635416666667 - Validation Accuracy=0.0992431640625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 12 - Training Loss=105.72961420890613 - Validation Loss=613.9196014404297 - Training Accuracy=0.11394481169871795 - Validation Accuracy=0.09814453125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 13 - Training Loss=114.56961167164339 - Validation Loss=844.1688079833984 - Training Accuracy=0.11404497195512821 - Validation Accuracy=0.0980224609375
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 14 - Training Loss=155.03868122589893 - Validation Loss=600.7658081054688 - Training Accuracy=0.1155849358974359 - Validation Accuracy=0.1014404296875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 15 - Training Loss=194.83519891592172 - Validation Loss=841.7591705322266 - Training Accuracy=0.11105268429487179 - Validation Accuracy=0.107421875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 16 - Training Loss=154.18764212192633 - Validation Loss=512.1762542724609 - Training Accuracy=0.10907451923076923 - Validation Accuracy=0.0941162109375
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 17 - Training Loss=120.20085124480418 - Validation Loss=449.3104019165039 - Training Accuracy=0.10341546474358974 - Validation Accuracy=0.0869140625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 18 - Training Loss=106.31620172353891 - Validation Loss=669.9663963317871 - Training Accuracy=0.09999749599358974 - Validation Accuracy=0.0904541015625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 19 - Training Loss=130.18220652066745 - Validation Loss=506.8022918701172 - Training Accuracy=0.10236378205128205 - Validation Accuracy=0.10302734375
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 20 - Training Loss=81.74346327170348 - Validation Loss=444.9920883178711 - Training Accuracy=0.11445813301282051 - Validation Accuracy=0.0994873046875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 21 - Training Loss=146.9502706283178 - Validation Loss=561.3872222900391 - Training Accuracy=0.1131435296474359 - Validation Accuracy=0.0972900390625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 22 - Training Loss=191.40191043951572 - Validation Loss=727.1630783081055 - Training Accuracy=0.11250500801282051 - Validation Accuracy=0.096435546875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 23 - Training Loss=162.24484076866736 - Validation Loss=936.9457015991211 - Training Accuracy=0.11438301282051282 - Validation Accuracy=0.1046142578125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 24 - Training Loss=313.3881601186899 - Validation Loss=1198.2277355194092 - Training Accuracy=0.11470853365384616 - Validation Accuracy=0.102294921875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 25 - Training Loss=517.2416990231245 - Validation Loss=886.9965972900391 - Training Accuracy=0.11194160657051282 - Validation Accuracy=0.0968017578125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 26 - Training Loss=753.4466857910156 - Validation Loss=1449.536148071289 - Training Accuracy=0.109375 - Validation Accuracy=0.096923828125
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 27 - Training Loss=1117.8504998622795 - Validation Loss=1466.599105834961 - Training Accuracy=0.10816055689102565 - Validation Accuracy=0.0966796875
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 28 - Training Loss=1135.3949244572566 - Validation Loss=1404.887954711914 - Training Accuracy=0.1043544671474359 - Validation Accuracy=0.087890625
+  dgl_warning(
+  0%|                                                                                                                                                                               | 0/39 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 29 - Training Loss=1867.018325414413 - Validation Loss=2061.9258728027344 - Training Accuracy=0.10409154647435898 - Validation Accuracy=0.0966796875
+  dgl_warning(
+  0%|                                                                                                                                                                                | 0/4 [00:00<?, ?it/s]/media/drive1/jettag/env_jet/lib/python3.10/site-packages/dgl/nn/pytorch/conv/chebconv.py:108: DGLWarning: lambda_max is not provided, using default value of 2.  Please use dgl.laplacian_lambda_max to compute the eigenvalues.
+Saved Model to file modelSaveFiles/v5-2048PCN.pt
+Epoch 30 - Training Loss=1293.619153145032 - Validation Loss=2322.8193969726562 - Training Accuracy=0.10797275641025642 - Validation Accuracy=0.1075439453125
+Convergence achieved at epoch 30. Stopping training.
+  dgl_warning(
+/media/drive1/jettag/env_jet/lib/python3.10/site-packages/sklearn/utils/deprecation.py:95: FutureWarning: Function plot_roc_curve is deprecated; This will be removed in v0.5.0. Please use scikitplot.metrics.plot_roc instead.
+[[0.00585938 0.00280762 0.00402832 0.00439453 0.00585938 0.00402832
+  0.00390625 0.00500488 0.00317383 0.00512695]
+ [0.00537109 0.0057373  0.00793457 0.00585938 0.00524902 0.00524902
+  0.0065918  0.00549316 0.00463867 0.00671387]
+ [0.00524902 0.00305176 0.00317383 0.00317383 0.00402832 0.0057373
+  0.00366211 0.00402832 0.0032959  0.00366211]
+ [0.02941895 0.05859375 0.05627441 0.04882812 0.04785156 0.03771973
+  0.03808594 0.03552246 0.05554199 0.03393555]
+ [0.00048828 0.00109863 0.00036621 0.00048828 0.00024414 0.00036621
+  0.00036621 0.00012207 0.00085449 0.00024414]
+ [0.         0.         0.         0.         0.         0.
+  0.         0.         0.         0.        ]
+ [0.01257324 0.00720215 0.00720215 0.0078125  0.0078125  0.00830078
+  0.00756836 0.00964355 0.00866699 0.00866699]
+ [0.03063965 0.01208496 0.01696777 0.01721191 0.01416016 0.02050781
+  0.02099609 0.02905273 0.01379395 0.02050781]
+ [0.00634766 0.00720215 0.00378418 0.00524902 0.00463867 0.00427246
+  0.00585938 0.00598145 0.0045166  0.00500488]
+ [0.00891113 0.00756836 0.00561523 0.00585938 0.00720215 0.00830078
+  0.0065918  0.01013184 0.00732422 0.00976562]]
+  warnings.warn(msg, category=FutureWarning)
+/media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/GNNVM.py:543: RuntimeWarning: invalid value encountered in scalar divide
+  recall = true_positive / (true_positive + false_negative)
+                     Accuracy  Precision    Recall  Specificity
+TTBar-Testing        0.862671   0.055879  0.132597     0.896424
+TTBarLep-Testing     0.847290   0.054461  0.097510     0.894163
+WToQQ-Testing        0.861938   0.030127  0.081250     0.893674
+ZToQQ-Testing        0.557007   0.493827  0.110528     0.910343
+ZJetsToNuNu-Testing  0.898804   0.002516  0.052632     0.902747
+HToBB-Testing        0.905518   0.000000       NaN     0.905518
+HToCC-Testing        0.836060   0.080834  0.088571     0.905900
+HToGG-Testing        0.757202   0.276744  0.148287     0.905572
+HToWW2Q1L-Testing    0.854370   0.044365  0.085450     0.897281
+HToWW4Q-Testing      0.848633   0.104302  0.126382     0.909115
+Micro Avg            0.822949   0.114306  0.102579     0.902074
+Macro Avg            0.822949   0.114306  0.102579     0.902074

@@ -1,0 +1,24 @@
+2025-04-18 17:13:00,176 INFO    MainThread:2482989 [wandb_setup.py:_flush():67] Current SDK version is 0.19.9
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_setup.py:_flush():67] Configure stats pid to 2482989
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_setup.py:_flush():67] Loading settings from /home/alice/.config/wandb/settings
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_setup.py:_flush():67] Loading settings from /media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/wandb/settings
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_setup.py:_flush():67] Loading settings from environment variables
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_init.py:setup_run_log_directory():662] Logging user logs to /media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/wandb/run-20250418_171300-aqptf1pv/logs/debug.log
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_init.py:setup_run_log_directory():663] Logging internal logs to /media/drive1/jettag/Jet-Tagging/raqib-pcn-experiments/training-experiments/wandb/run-20250418_171300-aqptf1pv/logs/debug-internal.log
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_init.py:init():781] calling init triggers
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_init.py:init():786] wandb.init called with sweep_config: {}
+config: {'epochs': 500, 'batch_size': 256, 'model': 'PCN', 'in_feats': 16, 'hidden_feats': 64, 'out_feats': 10, 'device': 'cuda', '_wandb': {}}
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_init.py:init():809] starting backend
+2025-04-18 17:13:00,177 INFO    MainThread:2482989 [wandb_init.py:init():813] sending inform_init request
+2025-04-18 17:13:00,179 INFO    MainThread:2482989 [backend.py:_multiprocessing_setup():101] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2025-04-18 17:13:00,179 INFO    MainThread:2482989 [wandb_init.py:init():823] backend started and connected
+2025-04-18 17:13:00,180 INFO    MainThread:2482989 [wandb_init.py:init():915] updated telemetry
+2025-04-18 17:13:00,183 INFO    MainThread:2482989 [wandb_init.py:init():939] communicating run to backend with 90.0 second timeout
+2025-04-18 17:13:01,126 INFO    MainThread:2482989 [wandb_init.py:init():1014] starting run threads in backend
+2025-04-18 17:13:01,261 INFO    MainThread:2482989 [wandb_run.py:_console_start():2454] atexit reg
+2025-04-18 17:13:01,261 INFO    MainThread:2482989 [wandb_run.py:_redirect():2306] redirect: wrap_raw
+2025-04-18 17:13:01,261 INFO    MainThread:2482989 [wandb_run.py:_redirect():2371] Wrapping output streams.
+2025-04-18 17:13:01,261 INFO    MainThread:2482989 [wandb_run.py:_redirect():2394] Redirects installed.
+2025-04-18 17:13:01,262 INFO    MainThread:2482989 [wandb_init.py:init():1056] run started, returning control to user process
+2025-04-18 17:13:04,398 INFO    MainThread:2482989 [wandb_watch.py:_watch():71] Watching
+2025-04-18 17:29:31,274 INFO    MsgRouterThr:2482989 [mailbox.py:close():129] [no run ID] Closing mailbox, abandoning 3 handles.
