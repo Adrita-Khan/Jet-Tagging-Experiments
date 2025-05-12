@@ -18,6 +18,8 @@ tqdm
 uproot
 wandb
 gputil
+uproot3
+rdkit
 
 
 # torch
