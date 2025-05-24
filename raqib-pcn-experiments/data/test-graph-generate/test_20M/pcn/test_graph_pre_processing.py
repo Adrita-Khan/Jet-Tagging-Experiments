@@ -41,7 +41,7 @@ def process_in_batches(filepath, jetType, batch_size=100_000, k=3):
             batch_num = start // batch_size
             
             # Skip if this batch already exists
-            batch_save_path = f'{save_dir}/batch_{batch_num}.pkl'
+            batch_save_path = f'{save_dir}/{jetType}_{batch_num}.pkl'
             if os.path.exists(batch_save_path):
                 print(f"Batch {batch_num} already exists, skipping...")
                 continue
