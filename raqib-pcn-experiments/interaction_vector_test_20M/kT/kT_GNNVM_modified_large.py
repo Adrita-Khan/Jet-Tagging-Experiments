@@ -317,7 +317,7 @@ chebFilterSize = 16
 
 # Start wandb logging
 wandb.init(
-    project="Delta Weight Testing 20M", 
+    project="kT Weight Testing 20M", 
     name=f"{classificationLevel}-{modelArchitecture}-Testing",
     config={
         "epochs": maxEpochs,

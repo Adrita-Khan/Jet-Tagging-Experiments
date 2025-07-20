@@ -77,6 +77,8 @@ def mSquare(part_a, part_b):
 
     mSquare_ab = (e_a + e_b)**2 - (np.linalg.norm(p_a + p_b))**2
 
+    if mSquare_ab <= 0:
+        print(mSquare_ab)
     return np.log(mSquare_ab)
 
 
