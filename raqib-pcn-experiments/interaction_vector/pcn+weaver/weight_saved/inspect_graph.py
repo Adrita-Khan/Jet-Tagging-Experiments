@@ -1,0 +1,25 @@
+import pickle
+interaction_weight = 'Z'
+# Open the pkl file and load only the first graph
+with open(f"weighted_graphs/{interaction_weight}/{interaction_weight}_HToBB_first_10.pkl", "rb") as f:
+    first_graph = pickle.load(f)[0]
+
+g = first_graph
+
+# Print graph summary
+print("Graph Summary:")
+print(g)
+
+# Print node features
+print("\nNode features:")
+for key in g.ndata:
+    print(f"  {key}: {g.ndata[key].shape}")
+
+# Print edge features
+print("\nEdge data:")
+if g.edata:
+    for key in g.edata:
+        print(f"{key}: {g.edata[key].shape}")
+        print(g.edata['weight'])
+else:
+    print("No edge data stored.")

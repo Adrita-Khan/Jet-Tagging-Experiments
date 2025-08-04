@@ -10,6 +10,7 @@ networkx
 numpy
 pandas
 pickle5
+plotly
 scikit-learn
 scikit-plot
 scipy==1.9.3

@@ -162,7 +162,7 @@ def fileToGraph(jetType, k=3, save=True):
     pointCloudArr = fileToPointCloudArray(jetType, input_features)
     
     # saveFilePath = f'/Volumes/Yash SSD/Multi Level Jet Tagging/{jetType}.pkl'
-    saveFilePath = f'../data/Multi Level Jet Tagging/Delta/Delta_{jetType}.pkl'
+    saveFilePath = f'../data/Multi Level Jet Tagging/delta/delta_{jetType}.pkl'
     
     # Create directory for adjacency matrices CSV files
     adj_csv_dir = f'adj_matrices/delta/{jetType}'
@@ -193,7 +193,7 @@ def fileToGraph(jetType, k=3, save=True):
             # Log the missing graphs
             missing_graphs.append({
                 'graph_type': jetType,
-                'weight_type': 'Delta',
+                'weight_type': 'delta',
                 'index_number': idx
             })
             
@@ -214,7 +214,7 @@ def groupToGraph(jetTypeList, groupName):
     for jetType in jetTypeList:
         allGraphs += fileToGraph(jetType, save=False)
     
-    saveFilePath = f'../data/Multi Level Jet Tagging/Delta/Delta_{groupName}.pkl' 
+    saveFilePath = f'../data/Multi Level Jet Tagging/delta/delta_{groupName}.pkl' 
     return allGraphs
 
 # process all jetTypes
