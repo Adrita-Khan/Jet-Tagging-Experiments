@@ -72,7 +72,7 @@ class GPUMemoryTracker:
             'training_memory_gb': training_memory / 1024**3,
             'total_gpu_memory_gb': total_memory / 1024**3,
             'gpu_utilization_percent': (used_memory / total_memory * 100) if total_memory > 0 else 0,
-            'free_memory_gb': free_memory / 1024
+            'free_memory_gb': free_memory / 1024**3
         }
     
     def log_memory_stats(self, epoch=None, stage='training'):
@@ -190,46 +190,24 @@ def compute_edge_weights(base_graph, points, weight_type, device):
     }
     weight_func = weight_functions[weight_type]
 
-    # Get existing edges from the base graph
+    # Get edge index tensors (staying on CPU first is fine)
     src_nodes, dst_nodes = base_graph.edges()
-    src_nodes = src_nodes.numpy()
-    dst_nodes = dst_nodes.numpy()
 
-    # Conver points to GPU tensor
+    # Move node features to the target device
     if not isinstance(points, torch.Tensor):
         points = torch.from_numpy(points).float().to(device)
     else:
-        points = points.float().to(device)
-    
-    # Batch processing to avoid memory issues
-    batch_size = 8192
-    num_edges = len(src_nodes)
-    edge_weights = []
+        points = points.to(device)
 
-    for i in range(0, num_edges, batch_size):
-        end_idx = min(i + batch_size, num_edges)
+    src_points = points[src_nodes.to(device)]
+    dst_points = points[dst_nodes.to(device)]
 
-        # Get batch indices
-        batch_src = src_nodes[i:end_idx]
-        batch_dst = dst_nodes[i:end_idx]
+    # Vectorized weight computation for all edges
+    with torch.no_grad():
+        edge_weights = weight_func(src_points, dst_points)
 
-        # Get corresponding points
-        src_points = points[batch_src]
-        dst_points = points[batch_dst]
-
-        # Compute weights for this batch
-        batch_weights = weight_func(src_points, dst_points)
-        edge_weights.append(batch_weights.cpu())
-
-        # clear intermediate tensors
-        del src_points, dst_points, batch_weights
-    
-    # Concatenate all batch results
-    edge_weights = torch.cat(edge_weights, dim=0).numpy()
-
-    # Clear GPU memory
-    del points
-    torch.cuda.empty_cache()
+    # cleanup
+    del src_points, dst_points
 
     return edge_weights
 
@@ -241,10 +219,16 @@ def create_weighted_graphs(base_graph, points, weight_type, device):
 
     # Create new graph with same structure
     src_nodes, dst_nodes = base_graph.edges()
-    new_graph = dgl.graph((src_nodes, dst_nodes), num_nodes=base_graph.num_nodes())
+    new_graph = dgl.graph((src_nodes.to(device), dst_nodes.to(device)), num_nodes=base_graph.num_nodes(), device=device)
 
     # Store edge weights in graph
-    new_graph.edata['weight'] = torch.from_numpy(edge_weights).float().to(device)
+    new_graph.edata['weight'] = edge_weights.float()
+    node_features = base_graph.ndata['feat'].to(device).clone()
+    new_graph.ndata['feat'] = node_features
+    # Copy any other node/graph metadata if present (to device)
+    for key in base_graph.ndata.keys():
+        if key != 'feat':
+            new_graph.ndata[key] = base_graph.ndata[key].to(device).clone()
 
     # Verification checks
     assert new_graph.num_nodes() == base_graph.num_nodes(), "Node count mismatch!"
@@ -296,7 +280,7 @@ class MultiGraphDataset(dgl.data.DGLDataset):
     def __getitem__(self, idx):
         # Get the base graph
         base_graph = self.base_graphs[idx]
-        points = base_graph.ndata['feat'].numpy()
+        points = base_graph.ndata['feat']
 
 
         # Generate 4 different graphs using GPU computation
@@ -304,22 +288,6 @@ class MultiGraphDataset(dgl.data.DGLDataset):
         graph_kT = create_weighted_graphs(base_graph, points, 'kT', self.device)
         graph_Z = create_weighted_graphs(base_graph, points, 'Z', self.device)
         graph_mSquare = create_weighted_graphs(base_graph, points, 'mSquare', self.device)
-
-
-        # Add node features to all graphs
-        node_features = base_graph.ndata['feat'].clone()
-        graph_delta.ndata['feat'] = node_features
-        graph_kT.ndata['feat'] = node_features
-        graph_Z.ndata['feat'] = node_features
-        graph_mSquare.ndata['feat'] = node_features
-
-        # Copy any other node/graph metadata if present
-        for key in base_graph.ndata.keys():
-            if key != 'feat':
-                graph_delta.ndata[key] = base_graph.ndata[key].clone()
-                graph_kT.ndata[key] = base_graph.ndata[key].clone()
-                graph_Z.ndata[key] = base_graph.ndata[key].clone()
-                graph_mSquare.ndata[key] = base_graph.ndata[key].clone()
         
         # Verification: identical structure
         assert graph_delta.num_nodes() == graph_kT.num_nodes() == graph_Z.num_nodes() == graph_mSquare.num_nodes()
@@ -438,9 +406,9 @@ else:
     train = dataset
 
 if maxEpochs != 0:
-    trainLoader = DataLoader(train, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True)
-    validationLoader = DataLoader(val, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True)
-    testLoader = DataLoader(test, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True)
+    trainLoader = DataLoader(train, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True, num_workers=0)
+    validationLoader = DataLoader(val, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True, num_workers=0)
+    testLoader = DataLoader(test, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True, num_workers=0)
 else:
     testLoader = DataLoader(train, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True)
 
@@ -782,6 +750,7 @@ if maxEpochs != 0:
             # Update confusion matrix
             for idx, pred in enumerate(predictions):
                 cfs[pred][labels[idx]] += 1
+
             
             # TESTING MEMORY CLEANUP
             del graph_delta, graph_kT, graph_mSquare, graph_Z
