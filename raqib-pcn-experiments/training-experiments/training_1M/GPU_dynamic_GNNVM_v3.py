@@ -1,24 +1,15 @@
 import numpy as np
 import pandas as pd
-from operator import truth
-import awkward as ak
 import torch
 from tqdm import tqdm
+import seaborn as sns
 import os
 import dgl
 import pickle
 import wandb
-import threading
-import time
-import psutil
-import GPUtil
-from datetime import datetime
 import matplotlib.pyplot as plt
-import os
 import argparse
 import math
-from scipy.spatial import cKDTree
-import scipy.sparse as sp
 import gc
 
 from dgllife.utils import RandomSplitter
@@ -44,75 +35,41 @@ parser.add_argument('--convergence_threshold', type=float, default=0.0001, help=
 
 args = parser.parse_args()
 
+# Use argparse values
+maxEpochs = args.max_epochs
+batchSize = args.batch_size
+device = args.device
+classificationLevel = args.classification_level
+modelArchitecture = args.model_architecture
+modelType = args.model_type
+load = True if args.load_model == 'Y' else False
+convergence_threshold = args.convergence_threshold
 
-# GPU Memory Monitoring Class
-class GPUMemoryTracker:
-    def __init__(self):
-        self.peak_allocated = 0
-        self.peak_reserved = 0
-        self.baseline_memory = 0
-        if torch.cuda.is_available():
-            self.baseline_memory = torch.cuda.memory_allocated()
-            torch.cuda.reset_peak_memory_stats()
-    
-    def get_memory_stats(self):
-        if not torch.cuda.is_available():
-            return None
-        
-        allocated = torch.cuda.memory_allocated()
-        reserved = torch.cuda.memory_reserved()
-        peak_allocated = torch.cuda.max_memory_allocated()
-        peak_reserved = torch.cuda.max_memory_reserved()
 
-        gpu = GPUtil.getGPUs()[0] if GPUtil.getGPUs() else None
-        total_memory = gpu.memoryTotal if gpu else 0
-        used_memory = gpu.memoryUsed if gpu else 0
-        free_memory = gpu.memoryFree if gpu else 0
+# Start wandb logging
+wandb.init(
+    project="All Interaction Features (On-the-fly)", 
+    name=f"{classificationLevel}-{modelArchitecture}",
+    config={
+        "epochs": maxEpochs,
+        "batch_size": batchSize,
+        "model": modelArchitecture,
+        "model_type": modelType,
+        "device": device,
+        "convergence_threshold": convergence_threshold,
+        "load_model": load
+    }
+)
+print("wandb logging initialized successfully!")
 
-        training_memory = allocated - self.baseline_memory
 
-        return {
-            'allocated_gb': allocated / 1024**3,
-            'reserved_gb': reserved / 1024**3,
-            'peak_allocated_gb': peak_allocated / 1024**3,
-            'peak_reserved_gb': peak_reserved / 1024**3,
-            'training_memory_gb': training_memory / 1024**3,
-            'total_gpu_memory_gb': total_memory / 1024**3,
-            'gpu_utilization_percent': (used_memory / total_memory * 100) if total_memory > 0 else 0,
-            'free_memory_gb': free_memory / 1024**3
-        }
-    
-    def log_memory_stats(self, epoch=None, stage='training'):
-        stats = self.get_memory_stats()
-        if not stats:
-            return {}
-        
-        prefix = f"Epoch {epoch} - " if epoch is not None else ""
-        print(f"{prefix}GPU Memory ({stage}):")
-        print(f" Current Allocated: {stats['allocated_gb']:.2f}GB")
-        print(f" Peak Allocated: {stats['peak_allocated_gb']:.2f}GB")
-        print(f" Training Memory: {stats['training_memory_gb']:.2f}GB")
-        print(f" GPU Utilization: {stats['gpu_utilization_percent']:.1f}%")
-        print(f" Free Memory: {stats['free_memory_gb']:.2f}GB")
+def log_gpu_memory(stage=""):
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024**3
+        cached = torch.cuda.memory_reserved() / 1024**3
+        print(f"{stage} - GPU Memory: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
 
-        wandb_dict = {
-            f"GPU/{stage}_allocated_gb": stats['allocated_gb'],
-            f"GPU/{stage}_peak_allocated_gb": stats['peak_allocated_gb'],
-            f"GPU/{stage}_training_memory_gb": stats['training_memory_gb'],
-            f"GPU/utilization_percent": stats['gpu_utilization_percent'],
-            f"GPU/free_memory_gb": stats['free_memory_gb'],
-        }
-
-        return wandb_dict
-
-# Edge weight calculations functions
-# def calculate_pT(part_px, part_py, eps=1e-8):
-#     pt2 = part_px ** 2 + part_py ** 2
-#     if eps is not None:
-#         pt2 = pt2.clamp(min=eps)
-#     pT = torch.sqrt(pt2)
-#     return pT
-
+# get pTmin
 def get_pTmin(part_i, part_j):
     pT_i = part_i[:, 4]
     pT_j = part_j[:, 4]
@@ -142,16 +99,12 @@ def get_delta(part_i, part_j, eps=1e-8):
     return delta
 
 def delta_weight(part_i, part_j, eps=1e-8):
-    # part_i = torch.from_numpy(part_i)
-    # part_j = torch.from_numpy(part_j)
     lndelta = torch.log(get_delta(part_i, part_j, eps))
     return lndelta
 
 
 # kT
 def kT_weight(part_i, part_j, eps=1e-8):
-    # part_i = torch.from_numpy(part_i)
-    # part_j = torch.from_numpy(part_j)
     pTmin = get_pTmin(part_i, part_j)
     delta_ij = get_delta(part_i, part_j)
     lnkT = torch.log((pTmin * delta_ij).clamp(min=eps))
@@ -160,8 +113,6 @@ def kT_weight(part_i, part_j, eps=1e-8):
 
 # Z
 def Z_weight(part_i, part_j, eps=1e-8):
-    # part_i = torch.from_numpy(part_i)
-    # part_j = torch.from_numpy(part_j)
     pTi = part_i[:, 4]
     pTj = part_j[:, 4]
     pTmin = get_pTmin(part_i, part_j)
@@ -181,8 +132,6 @@ def to_m2(part_i, part_j, eps=1e-8):
     return m2
 
 def mSquare_weight(part_i, part_j, eps=1e-8):
-    # part_i = torch.from_numpy(part_i)
-    # part_j = torch.from_numpy(part_j)
     lnm2 = torch.log(to_m2(part_i, part_j, eps=eps))
     return lnm2
 
@@ -230,8 +179,11 @@ def create_weighted_graphs(base_graph, points, weight_type, device):
 
     # Store edge weights in graph
     new_graph.edata['weight'] = edge_weights.float()
+
+
     node_features = base_graph.ndata['feat'].to(device).clone()
     new_graph.ndata['feat'] = node_features
+
     # Copy any other node/graph metadata if present (to device)
     for key in base_graph.ndata.keys():
         if key != 'feat':
@@ -241,6 +193,10 @@ def create_weighted_graphs(base_graph, points, weight_type, device):
     assert new_graph.num_nodes() == base_graph.num_nodes(), "Node count mismatch!"
     assert new_graph.num_edges() == base_graph.num_edges(), "Edge count mismatch!"
     assert len(edge_weights) == base_graph.num_edges(), "Edge weight count mismatch!"
+
+    # Immediate cleanup of edge_weights to free GPU memory
+    del edge_weights
+    torch.cuda.empty_cache()
 
     return new_graph
 
@@ -268,79 +224,107 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                 else:
                     base_path = f'data/{jetType}.pkl'
                 
+                print(f"Loading {jetType}...")
                 with open(base_path, 'rb') as f:
                     base_graphs = pickle.load(f)
 
-                    # Process each graph after loading
-                    print(f"Generating weighted graphs for {jetType}... ... ...")
-                    for idx, base_graph in tqdm(enumerate(base_graphs), total=len(base_graphs), desc=f"Processing {jetType}", leave=False):
-                        points = base_graph.ndata['feat']
+                # Process each graph after loading
+                print(f"Processing ALL {len(base_graphs)} graphs for {jetType}... ... ...")
+                
+                # Lists to store ALL graphs for this ENTIRE jet class
+                jetType_delta = []
+                jetType_kT = []
+                jetType_Z = []
+                jetType_mSquare = []
 
-                        # Generate 4 different graphs using GPU
-                        graph_delta = create_weighted_graphs(base_graph, points, 'delta', self.device)
-                        graph_kT = create_weighted_graphs(base_graph, points, 'kT', self.device)
-                        graph_Z = create_weighted_graphs(base_graph, points, 'Z', self.device)
-                        graph_mSquare = create_weighted_graphs(base_graph, points, 'mSquare', self.device)
+                for idx, base_graph in tqdm(enumerate(base_graphs),
+                                            total=len(base_graphs),
+                                            desc=f"Creating weighted graphs for {jetType}",
+                                            leave=False):
+                    points = base_graph.ndata['feat']
 
-                        # Store in CPU
-                        self.delta.append(graph_delta.to('cpu'))
-                        self.kT.append(graph_kT.to('cpu'))
-                        self.Z.append(graph_Z.to('cpu'))
-                        self.mSquare.append(graph_mSquare.to('cpu'))
+                    # Create all 4 weighted graph types for this single base graph
+                    graph_delta = create_weighted_graphs(base_graph, points, 'delta', self.device)
+                    graph_kT = create_weighted_graphs(base_graph, points, 'kT', self.device)
+                    graph_Z = create_weighted_graphs(base_graph, points, 'Z', self.device)
+                    graph_mSquare = create_weighted_graphs(base_graph, points, 'mSquare', self.device)
 
-                        # Clean GPU
-                        del graph_delta, graph_kT, graph_Z, graph_mSquare
-                        del points
 
-                        # Clear cache
-                        if idx % 5000 == 0:
-                            torch.cuda.empty_cache()
-                            gc.collect()
+                    # Move ALL 4 graphs to CPU immediately
+                    jetType_delta.append(graph_delta.to('cpu'))
+                    jetType_kT.append(graph_kT.to('cpu'))
+                    jetType_Z.append(graph_Z.to('cpu'))
+                    jetType_mSquare.append(graph_mSquare.to('cpu'))
 
-                    # Add base graphs after preprocessing
-                    self.base_graphs += base_graphs
+                    # Clean GPU
+                    del graph_delta, graph_kT, graph_Z, graph_mSquare
+                    del points
 
+                    # Periodic cleanup during processing
+                    if idx % 10_000 == 0:
+                        torch.cuda.empty_cache()
+                        gc.collect()
+                        
+                print(f"Generated all weighted graphs for {jetType}")
+
+                # Add ALL graphs from this jet class to main dataset
+                self.delta.extend(jetType_delta)
+                self.kT.extend(jetType_kT)
+                self.Z.extend(jetType_Z)
+                self.mSquare.extend(jetType_mSquare)
+                self.base_graphs.extend(base_graphs)
                 self.sampleCountPerClass.append(len(base_graphs))
+
+                print(f"Added {len(base_graphs)} graphs from {jetType} to dataset")
+                
+                # Clean up this jet class data
+                del jetType_delta, jetType_kT, jetType_Z, jetType_mSquare
                 del base_graphs
 
-                # Clear cache after processing each jet type
+                # COMPLETE GPU CLEANUP before moving to next jet class
                 torch.cuda.empty_cache()
                 gc.collect()
+
+                print(f"{jetType} COMPLETED - GPU completely cleared")
+
+                log_gpu_memory()
+
+                print("-" * 50)         # Visual separator between jet classes
         
         self.labels = []
         label = 0
         for sampleCount in self.sampleCountPerClass:
-            print(f"Class {label} has {sampleCount} samples")
+            print(f"Class {label} ({self.jetNames[label]}) has {sampleCount} samples")
             for _ in range(sampleCount):
                 self.labels.append(label)
             label += 1
         
+        print(f"DATASET CREATION COMPLETED!")
+        print(f"Total samples: {len(self.labels)}")
         print(f"Samples per class: {self.sampleCountPerClass}")
-        print("All weighted graphs pre-computation completed!")
+        
+        # Final cleanup
+        torch.cuda.empty_cache()
+        gc.collect()
+        print("Final GPU cleanup completed")
+
 
 
     def process(self):
         return
     
     def __getitem__(self, idx):
-        # Return the pre-computed graphs (move to GPU during training)
-        graph_delta = self.delta[idx].to(self.device)
-        graph_kT = self.kT[idx].to(self.device)
-        graph_Z = self.Z[idx].to(self.device)
-        graph_mSquare = self.mSquare[idx].to(self.device)
-        
+        # Return CPU graphs - they'll be moved to GPU in collate function
         return {
-            'graph_delta': graph_delta,
-            'graph_kT': graph_kT,
-            'graph_Z': graph_Z,
-            'graph_mSquare': graph_mSquare,
+            'graph_delta': self.delta[idx],
+            'graph_kT': self.kT[idx],
+            'graph_Z': self.Z[idx],
+            'graph_mSquare': self.mSquare[idx],
             'label': self.labels[idx]
         }
     
     def __len__(self):
         return len(self.base_graphs)
-
-
 
 # collate function for multiple graphs
 def collateFunction(batch):
@@ -350,13 +334,13 @@ def collateFunction(batch):
     graphs_Z = [item['graph_Z'] for item in batch]
     labels = [item['label'] for item in batch]
     
-    batched_graph_delta = dgl.batch(graphs_delta)
-    batched_graph_kT = dgl.batch(graphs_kT)
-    batched_graph_mSquare = dgl.batch(graphs_mSquare)
-    batched_graph_Z = dgl.batch(graphs_Z)
+    # Batch on CPU first, then move to GPU
+    batched_graph_delta = dgl.batch(graphs_delta).to(device)
+    batched_graph_kT = dgl.batch(graphs_kT).to(device)
+    batched_graph_mSquare = dgl.batch(graphs_mSquare).to(device)
+    batched_graph_Z = dgl.batch(graphs_Z).to(device)
     
     return (batched_graph_delta, batched_graph_kT, batched_graph_mSquare, batched_graph_Z), torch.tensor(labels)
-
 
 # GNN Feature Extractor
 class GNNFeatureExtractor(nn.Module):
@@ -417,27 +401,31 @@ testingSet = [s + "-Testing" for s in testingSet]
 jetNames = testingSet
 print(jetNames)
 
-# Initialize GPU memory tracker before dataset loading
-print("Initializing GPU Memory Tracker...")
-memory_tracker = GPUMemoryTracker()
+# Log dataset configuration
+wandb.log({
+    "Dataset/jet_names": jetNames,
+    "Dataset/num_jet_types": len(jetNames),
+})
 
 # Create dataset with k=3
+print("Creating dataset...")
 dataset = MultiGraphDataset(jetNames, 3, loadFromDisk=False, device=device, use_gpu=True)
 dataset.process()
 
-# Use argparse values
-maxEpochs = args.max_epochs
-batchSize = args.batch_size
-device = args.device
-classificationLevel = args.classification_level
-modelArchitecture = args.model_architecture
-modelType = args.model_type
-load = True if args.load_model == 'Y' else False
-convergence_threshold = args.convergence_threshold
+log_gpu_memory()
 
 if maxEpochs != 0:
+    print("Creating data splits...")
     train, val, test = RandomSplitter().train_val_test_split(dataset, frac_train=0.8, frac_test=0.1, 
                                                          frac_val=0.1, random_state=42)
+    
+    # Log data split information
+    wandb.log({
+        "Dataset/train_size": len(train),
+        "Dataset/val_size": len(val),
+        "Dataset/test_size": len(test)
+    })
+    
 else:
     train = dataset
 
@@ -456,26 +444,19 @@ in_feats = 16
 hidden_feats = 64
 out_feats = len(jetNames) # Number of output classes
 
-# Start wandb logging
-wandb.init(
-    project="All Interaction Features (On-the-fly)", 
-    name=f"{classificationLevel}-{modelArchitecture}",
-    config={
-        "epochs": maxEpochs,
-        "batch_size": batchSize,
-        "model": modelArchitecture,
-        "model_type": modelType,
-        "in_feats": in_feats,
-        "hidden_feats": hidden_feats,
-        "out_feats": out_feats,
-        "device": device
-    }
-)
+# Update wandb config with model details
+wandb.config.update({
+    "in_feats": in_feats,
+    "hidden_feats": hidden_feats,
+    "out_feats": out_feats,
+    "model_save_file": modelSaveFile
+})
 
 chebFilterSize = 16
 
 if modelType == "DGCNN":
     # Create 4 feature extractors for each graph type
+    print("Creating models...")
     model_delta = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
     model_kT = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
     model_mSquare = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
@@ -483,6 +464,7 @@ if modelType == "DGCNN":
     
     # Final classifier that takes concatenated features
     classifier = Classifier(hidden_feats * 4, hidden_feats, out_feats)
+
 else:
     print("Invalid selection. Only DGCNN supported for multi-graph!")
     exit()
@@ -498,7 +480,7 @@ classifier.to(device)
 all_models = [model_delta, model_kT, model_mSquare, model_Z, classifier]
 
 # Watch only the classifier to reduce memory overhead
-wandb.watch(classifier, log='all', log_freq=200)
+wandb.watch(classifier, log='gradients', log_freq=100)
 
 # Define the loss function and optimizer for all models
 criterion = nn.CrossEntropyLoss()
@@ -519,10 +501,6 @@ bestLoss = float('inf')
 epochs_without_improvement = 0
 epochsTillQuit = 10
 
-# Log initial memory state
-initial_memory = memory_tracker.log_memory_stats(stage="initial")
-wandb.log(initial_memory)
-
 # Memory Fix
 def cleanup_tensors(*tensors):
     """Helper function to properly delete tensors and clear cache"""
@@ -531,6 +509,10 @@ def cleanup_tensors(*tensors):
             del tensor
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+# Log training start
+if maxEpochs > 0:
+    print("Starting training...")
 
 # Train the model
 for epoch in range(maxEpochs):
@@ -547,12 +529,6 @@ for epoch in range(maxEpochs):
     for batchIndex, (graphs, labels) in tqdm(enumerate(trainLoader), total=len(trainLoader), leave=False):
         # Unpack graphs
         graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
-        
-        # Port data to the device in use
-        graph_delta = graph_delta.to(device)
-        graph_kT = graph_kT.to(device)
-        graph_mSquare = graph_mSquare.to(device)
-        graph_Z = graph_Z.to(device)
         labels = labels.to(device).long()
 
         # Clear gradients before forward pass
@@ -601,6 +577,9 @@ for epoch in range(maxEpochs):
             torch.cuda.empty_cache()
             gc.collect()
 
+        
+    log_gpu_memory(f"Training epoch {epoch+1}")
+
     # Compute epoch statistics
     epochLoss = runningLoss / len(trainLoader)
     trainingLossTracker.append(epochLoss)
@@ -617,11 +596,6 @@ for epoch in range(maxEpochs):
         for graphs, labels in tqdm(validationLoader, total=len(validationLoader), leave=False):
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
-            
-            graph_delta = graph_delta.to(device)
-            graph_kT = graph_kT.to(device)
-            graph_mSquare = graph_mSquare.to(device)
-            graph_Z = graph_Z.to(device)
             labels = labels.to(device).long()
 
             # Get embeddings and logits
@@ -650,6 +624,8 @@ for epoch in range(maxEpochs):
                 concatenated_features, logits, predictions, loss
             )
             del graphs, labels
+            
+    log_gpu_memory()
 
     avgValidationLoss = validationLoss / len(validationLoader)
     validationLossTracker.append(avgValidationLoss)
@@ -694,9 +670,6 @@ for epoch in range(maxEpochs):
                 grad_norm += p.grad.data.norm(2).item()**2
     grad_norm = grad_norm ** 0.5
     
-    # Get comprehensive memory stats
-    memory_stats = memory_tracker.log_memory_stats(epoch + 1, "training")
-    
     # Print training and validation losses
     print(f"Epoch {epoch + 1} - Training Loss={epochLoss:.4f} - Validation Loss={avgValidationLoss:.4f} - Training Accuracy={epochAccuracy:.4f} - Validation Accuracy={validationAccuracy:.4f}")
     
@@ -707,12 +680,13 @@ for epoch in range(maxEpochs):
         "Training Accuracy": epochAccuracy,
         "Validation Accuracy": validationAccuracy,
         "Gradient Norm": grad_norm,
-        **memory_stats  # Include all detailed memory stats
+        "Training/epochs_without_improvement": epochs_without_improvement,
     })
 
     # Check convergence criteria
     if epochs_without_improvement >= epochsTillQuit:
         print(f'Convergence achieved at epoch {epoch + 1}. Stopping training.')
+        wandb.log({"Training/early_stopping": epoch + 1})
         break
 
 if maxEpochs != 0:
@@ -727,6 +701,8 @@ except Exception as e:
 
 if maxEpochs != 0:
     import matplotlib.pyplot as plt
+
+    print("Creating training plots...")
     
     # Plot training loss
     plt.figure()
@@ -765,6 +741,8 @@ if maxEpochs != 0:
     plt.close()
 
 # Testing and Evaluation
+print("Starting testing and evaluation...")
+
 logitsTracker = []
 predictionsTracker = []
 targetsTracker = []
@@ -782,11 +760,6 @@ if maxEpochs != 0:
         for graphs, labels in tqdm(testLoader, total=len(testLoader), leave=False):
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
-            
-            graph_delta = graph_delta.to(device)
-            graph_kT = graph_kT.to(device)
-            graph_mSquare = graph_mSquare.to(device)
-            graph_Z = graph_Z.to(device)
             labels = labels.to(device)
 
             # Get embeddings and logits
@@ -825,11 +798,6 @@ else:
         for batch_idx, (graphs, labels) in tqdm(enumerate(testLoader), total=len(testLoader), leave=False):
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
-            
-            graph_delta = graph_delta.to(device)
-            graph_kT = graph_kT.to(device)
-            graph_mSquare = graph_mSquare.to(device)
-            graph_Z = graph_Z.to(device)
             labels = labels.to(device)
 
             # Get embeddings and logits
@@ -868,20 +836,6 @@ else:
 torch.cuda.empty_cache()
 gc.collect()
 
-# Log final memory requirements
-final_stats = memory_tracker.get_memory_stats()
-if final_stats:
-    print("\n=== MEMORY REQUIREMENTS SUMMARY ===")
-    print(f"Peak Memory Required: {final_stats['peak_allocated_gb']:.2f}GB")
-    print(f"Recommended GPU Memory: {final_stats['peak_allocated_gb'] * 1.2:.2f}GB (with 20% buffer)")
-    
-    # Log final memory requirements to wandb
-    wandb.log({
-        "Final/peak_memory_required_gb": final_stats['peak_allocated_gb'],
-        "Final/recommended_gpu_memory_gb": final_stats['peak_allocated_gb'] * 1.2,
-        "Final/training_memory_used_gb": final_stats['training_memory_gb']
-    })
-
 # Save metrics
 os.makedirs('metrics', exist_ok=True)
 logitsTrackerFile = f'metrics/{classificationLevel}-{modelArchitecture}-Logits.pkl'
@@ -901,8 +855,7 @@ with open(predictionsTrackerFile, 'wb') as f:
 del logitsTracker, predictionsTracker, targetsTracker
 gc.collect()
 
-import seaborn as sns
-import matplotlib.pyplot as plt
+print("Creating evaluation plots...")
 
 # Plot confusion matrix
 fig = plt.gcf()
@@ -978,23 +931,21 @@ metricsDF.loc['Macro Avg'] = macroAvg
 # Print the metrics table
 print(metricsDF)
 wandb.log({
+    "Results/micro_avg_accuracy": microAvg['Accuracy'],
+    "Results/micro_avg_precision": microAvg['Precision'],
+    "Results/micro_avg_recall": microAvg['Recall'],
+    "Results/micro_avg_specificity": microAvg['Specificity'],
     "Confusion Matrix": wandb.Image(f"{imageSavePath}/Confusion Matrix.png"),
     "ROC-AUC Curve": wandb.Image(f"{imageSavePath}/ROC-AUC.png"),
     "Confusion Matrix Table": wandb.Table(dataframe=metricsDF.reset_index())
 })
 
 wandb.save(modelSaveFile)
+print("Training completed successfully!")
 wandb.finish()
 
-print("Training completed successfully!")
-
-# Final memory summary
-final_memory = memory_tracker.log_memory_stats(stage="final")
-print("\n=== TRAINING COMPLETED ===")
-
-
 # Final cleanup
-del dataset, memory_tracker
+del dataset
 if 'train' in locals(): del train
 if 'val' in locals(): del val
 if 'test' in locals(): del test
