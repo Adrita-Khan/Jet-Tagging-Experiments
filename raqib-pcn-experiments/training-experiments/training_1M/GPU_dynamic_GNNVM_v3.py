@@ -146,7 +146,7 @@ def compute_edge_weights(base_graph, points, weight_type, device):
     }
     weight_func = weight_functions[weight_type]
 
-    # Get edge index tensors (staying on CPU first is fine)
+    # Get edge index tensors (staying on CPU first)
     src_nodes, dst_nodes = base_graph.edges()
 
     # Move node features to the target device
@@ -155,8 +155,8 @@ def compute_edge_weights(base_graph, points, weight_type, device):
     else:
         points = points.to(device)
 
-    src_points = points[src_nodes.to(device)]
-    dst_points = points[dst_nodes.to(device)]
+    src_points = points[src_nodes.to(device)].detach()
+    dst_points = points[dst_nodes.to(device)].detach()
 
     # Vectorized weight computation for all edges
     with torch.no_grad():
@@ -164,7 +164,12 @@ def compute_edge_weights(base_graph, points, weight_type, device):
 
     # cleanup
     del src_points, dst_points
+    del src_nodes, dst_nodes
 
+    if not isinstance(base_graph.ndata['feat'], torch.Tensor) or base_graph.ndata['feat'].device != device:
+        del points
+
+    torch.cuda.empty_cache()
     return edge_weights
 
 
@@ -177,25 +182,33 @@ def create_weighted_graphs(base_graph, points, weight_type, device):
     src_nodes, dst_nodes = base_graph.edges()
     new_graph = dgl.graph((src_nodes.to(device), dst_nodes.to(device)), num_nodes=base_graph.num_nodes(), device=device)
 
+    # Clean up edge node tensors after graph creation
+    del src_nodes, dst_nodes
+
     # Store edge weights in graph
     new_graph.edata['weight'] = edge_weights.float()
 
+    # Immediate cleanup of edge_weights to free GPU memory
+    del edge_weights
 
-    node_features = base_graph.ndata['feat'].to(device).clone()
+    node_features = base_graph.ndata['feat'].detach().to(device).clone()
     new_graph.ndata['feat'] = node_features
+
+    # Clean up the temporary node_features tensor
+    del node_features
 
     # Copy any other node/graph metadata if present (to device)
     for key in base_graph.ndata.keys():
         if key != 'feat':
-            new_graph.ndata[key] = base_graph.ndata[key].to(device).clone()
+            temp_data = base_graph.ndata[key].detach().to(device).clone()
+            new_graph.ndata[key] = temp_data
+            del temp_data       #  Clean up temporary tensor
 
     # Verification checks
     assert new_graph.num_nodes() == base_graph.num_nodes(), "Node count mismatch!"
     assert new_graph.num_edges() == base_graph.num_edges(), "Edge count mismatch!"
-    assert len(edge_weights) == base_graph.num_edges(), "Edge weight count mismatch!"
 
-    # Immediate cleanup of edge_weights to free GPU memory
-    del edge_weights
+    # Final GPU cleanup
     torch.cuda.empty_cache()
 
     return new_graph
@@ -339,8 +352,27 @@ def collateFunction(batch):
     batched_graph_kT = dgl.batch(graphs_kT).to(device)
     batched_graph_mSquare = dgl.batch(graphs_mSquare).to(device)
     batched_graph_Z = dgl.batch(graphs_Z).to(device)
+
+    # Ensure all node features AND edge weights are detached to prevent gradient tracking
+    batched_graph_delta.ndata['feat'] = batched_graph_delta.ndata['feat'].detach()
+    batched_graph_kT.ndata['feat'] = batched_graph_kT.ndata['feat'].detach()
+    batched_graph_mSquare.ndata['feat'] = batched_graph_mSquare.ndata['feat'].detach()
+    batched_graph_Z.ndata['feat'] = batched_graph_Z.ndata['feat'].detach()
     
-    return (batched_graph_delta, batched_graph_kT, batched_graph_mSquare, batched_graph_Z), torch.tensor(labels)
+    # Also detach edge weights to prevent gradient tracking
+    if 'weight' in batched_graph_delta.edata:
+        batched_graph_delta.edata['weight'] = batched_graph_delta.edata['weight'].detach()
+    if 'weight' in batched_graph_kT.edata:
+        batched_graph_kT.edata['weight'] = batched_graph_kT.edata['weight'].detach()
+    if 'weight' in batched_graph_mSquare.edata:
+        batched_graph_mSquare.edata['weight'] = batched_graph_mSquare.edata['weight'].detach()
+    if 'weight' in batched_graph_Z.edata:
+        batched_graph_Z.edata['weight'] = batched_graph_Z.edata['weight'].detach()
+
+    # CRITICAL FIX: Clear CPU graph lists after batching
+    del graphs_delta, graphs_kT, graphs_mSquare, graphs_Z
+    
+    return (batched_graph_delta, batched_graph_kT, batched_graph_mSquare, batched_graph_Z), torch.tensor(labels, device=device)
 
 # GNN Feature Extractor
 class GNNFeatureExtractor(nn.Module):
@@ -506,9 +538,14 @@ def cleanup_tensors(*tensors):
     """Helper function to properly delete tensors and clear cache"""
     for tensor in tensors:
         if tensor is not None:
+            # FIX: Check if it's a tensor before deleting
+            if hasattr(tensor, 'data'):
+                tensor.data = None
             del tensor
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+        # FIX: Also call garbage collection
+        gc.collect()
 
 # Log training start
 if maxEpochs > 0:
@@ -555,9 +592,11 @@ for epoch in range(maxEpochs):
         runningLoss += loss.item()
 
         # Compute accuracy
-        predictions = logits.argmax(dim=1)
-        batchCorrectPredictions = (predictions == labels).sum().item()
-        batchTotalSamples = labels.numel()
+        with torch.no_grad():
+            predictions = logits.argmax(dim=1)
+            batchCorrectPredictions = (predictions == labels).sum().item()
+            batchTotalSamples = labels.numel()
+
         totalCorrectPredictions += batchCorrectPredictions
         totalSamples += batchTotalSamples
 
@@ -565,11 +604,11 @@ for epoch in range(maxEpochs):
         cleanup_tensors(
             graph_delta, graph_kT, graph_mSquare, graph_Z,
             hg_delta, hg_kT, hg_mSquare, hg_Z, 
-            concatenated_features, logits, predictions, loss
+            concatenated_features, logits, predictions, loss, labels
         )
 
         # Also clean up the original unpacked variables
-        del graphs, labels
+        del graphs
         
         
         # Clear cache periodically
@@ -757,7 +796,7 @@ import sklearn
 
 if maxEpochs != 0:
     with torch.no_grad():
-        for graphs, labels in tqdm(testLoader, total=len(testLoader), leave=False):
+        for batch_idx, (graphs, labels) in tqdm(testLoader, total=len(testLoader), leave=False):
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device)
@@ -790,6 +829,10 @@ if maxEpochs != 0:
                 concatenated_features, logits, predictions
             )
             del graphs, labels
+            # frequent cleanup during testing
+            if batch_idx % 10 == 0:
+                torch.cuda.empty_cache()
+                gc.collect()
             
             # Periodic cleanup during testing
             torch.cuda.empty_cache()
