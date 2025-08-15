@@ -275,8 +275,9 @@ def mSquare_weight(part_i, part_j, eps=1e-8):
     return lnm2
 
 
-# Compute edge weight for a given weight type
-def compute_edge_weights(base_graph, points, weight_type, device):
+# Compute edge weight for a given weight type (GPU calculation only, results returned on CPU)
+def compute_edge_weights_gpu(base_graph_cpu, weight_type, device):
+    # Compute edge weights on GPU using node features and edge indices; keep graphs on CPU
     weight_functions = {
         'delta': delta_weight,
         'kT': kT_weight,
@@ -285,78 +286,65 @@ def compute_edge_weights(base_graph, points, weight_type, device):
     }
     weight_func = weight_functions[weight_type]
 
-    # Get edge index tensors on CPU
-    src_nodes, dst_nodes = base_graph.edges()
+    # Edge indices on CPU
+    src_nodes_cpu, dst_nodes_cpu = base_graph_cpu.edges()
+    src_nodes_cpu = src_nodes_cpu.detach().clone()
+    dst_nodes_cpu = dst_nodes_cpu.detach().clone()
 
-    # Ensure node features are a CPU tensor
-    if not isinstance(points, torch.Tensor):
-        points = torch.from_numpy(points).float()
+    # Move only what is required to GPU
+    points_cpu = base_graph_cpu.ndata['feat']
+    points_gpu = points_cpu.to(device)
+    src_gpu = src_nodes_cpu.to(device)
+    dst_gpu = dst_nodes_cpu.to(device)
 
-    # Gather CPU slices first, then move only the required data to GPU
-    src_points_cpu = points[src_nodes]
-    dst_points_cpu = points[dst_nodes]
+    # Gather endpoint features for all edges
+    src_points = points_gpu.index_select(0, src_gpu)
+    dst_points = points_gpu.index_select(0, dst_gpu)
 
-    src_points = src_points_cpu.to(device, non_blocking=True)
-    dst_points = dst_points_cpu.to(device, non_blocking=True)
-
-    # Vectorized weight computation for all edges on GPU
     with torch.no_grad():
-        edge_weights = weight_func(src_points, dst_points).detach().float()
+        edge_weights_gpu = weight_func(src_points, dst_points)
 
-    # Move weights back to CPU immediately and cleanup GPU tensors
-    edge_weights_cpu = edge_weights.cpu()
+    # Bring weights back to CPU for CPU graphs
+    edge_weights_cpu = edge_weights_gpu.detach().to('cpu')
 
-    # CRITICAL: Clean up GPU tensor before returning
-    del edge_weights
-    del src_points, dst_points, src_points_cpu, dst_points_cpu
-    del src_nodes, dst_nodes
-    if isinstance(points, torch.Tensor):
-        del points
-
+    # Cleanup GPU tensors
+    del src_points, dst_points, edge_weights_gpu, points_gpu, src_gpu, dst_gpu
     torch.cuda.empty_cache()
+
     return edge_weights_cpu
 
 
-# Create new graph with same structure but different edge weights
-def create_weighted_graphs(base_graph, points, weight_type, device):
-    # Get edge weights for the existing graph structure
-    edge_weights_cpu = compute_edge_weights(base_graph, points, weight_type, device)
+# Create new graph with same structure but different edge weights (graph stays on CPU)
+def create_weighted_graphs(base_graph_cpu, weight_type, device):
+    # Compute edge weights on GPU, return on CPU
+    edge_weights_cpu = compute_edge_weights_gpu(base_graph_cpu, weight_type, device)
 
-    # Create new graph with same structure on CPU
-    src_nodes, dst_nodes = base_graph.edges()
-    new_graph = dgl.graph((src_nodes, dst_nodes), num_nodes=base_graph.num_nodes(), device='cpu')
+    # Create new graph on CPU with same structure
+    src_nodes_cpu, dst_nodes_cpu = base_graph_cpu.edges()
+    new_graph_cpu = dgl.graph((src_nodes_cpu, dst_nodes_cpu), num_nodes=base_graph_cpu.num_nodes(), device='cpu')
 
-    # Clean up edge node tensors after graph creation
-    del src_nodes, dst_nodes
+    # Assign edge weights on CPU
+    new_graph_cpu.edata['weight'] = edge_weights_cpu.float().contiguous()
 
-    # Store edge weights in graph (CPU)
-    new_graph.edata['weight'] = edge_weights_cpu
+    # Copy node features and any other node data (on CPU)
+    node_features_cpu = base_graph_cpu.ndata['feat'].detach().to('cpu').clone()
+    new_graph_cpu.ndata['feat'] = node_features_cpu
+    del node_features_cpu
 
-    # Immediate cleanup of edge_weights to free memory
-    del edge_weights_cpu
-
-    # Keep node features on CPU
-    node_features = base_graph.ndata['feat'].detach().clone()
-    new_graph.ndata['feat'] = node_features
-
-    # Clean up the temporary node_features tensor
-    del node_features
-
-    # Copy any other node/graph metadata if present (to device)
-    for key in base_graph.ndata.keys():
+    for key in base_graph_cpu.ndata.keys():
         if key != 'feat':
-            temp_data = base_graph.ndata[key].detach().clone()
-            new_graph.ndata[key] = temp_data
-            del temp_data       #  Clean up temporary tensor
+            temp_data_cpu = base_graph_cpu.ndata[key].detach().to('cpu').clone()
+            new_graph_cpu.ndata[key] = temp_data_cpu
+            del temp_data_cpu
 
-    # Verification checks
-    assert new_graph.num_nodes() == base_graph.num_nodes(), "Node count mismatch!"
-    assert new_graph.num_edges() == base_graph.num_edges(), "Edge count mismatch!"
+    # Sanity checks
+    assert new_graph_cpu.num_nodes() == base_graph_cpu.num_nodes(), "Node count mismatch!"
+    assert new_graph_cpu.num_edges() == base_graph_cpu.num_edges(), "Edge count mismatch!"
 
-    # Final GPU cleanup (weights were already moved off GPU)
+    # Final GPU cleanup after this graph
     torch.cuda.empty_cache()
 
-    return new_graph
+    return new_graph_cpu
 
 
 # MultiGraphDataset Class GPU-optimized MultiGraphDataset class
@@ -406,13 +394,11 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                                             total=len(base_graphs),
                                             desc=f"Creating weighted graphs for {jetType}",
                                             leave=False):
-                    points = base_graph.ndata['feat']
-
                     # Create all 4 weighted graph types for this single base graph
-                    graph_delta = create_weighted_graphs(base_graph, points, 'delta', self.device)
-                    graph_kT = create_weighted_graphs(base_graph, points, 'kT', self.device)
-                    graph_Z = create_weighted_graphs(base_graph, points, 'Z', self.device)
-                    graph_mSquare = create_weighted_graphs(base_graph, points, 'mSquare', self.device)
+                    graph_delta = create_weighted_graphs(base_graph, 'delta', self.device)
+                    graph_kT = create_weighted_graphs(base_graph, 'kT', self.device)
+                    graph_Z = create_weighted_graphs(base_graph, 'Z', self.device)
+                    graph_mSquare = create_weighted_graphs(base_graph, 'mSquare', self.device)
 
                     # Graphs are already on CPU, just append them
                     jetType_delta.append(graph_delta)
@@ -422,18 +408,17 @@ class MultiGraphDataset(dgl.data.DGLDataset):
 
                     # Clean up references - including the base_graph 
                     del graph_delta, graph_kT, graph_Z, graph_mSquare
-                    del points
                     del base_graph  # Delete base graph immediately after use
 
-                    # Log progress every 1000 graphs (memory is handled by continuous monitor)
-                    if idx % 1000 == 0:
+                    # Log progress every 100,000 graphs (reduced frequency for better performance)
+                    if idx % 100_000 == 0:
                         wandb.log({
                             f"Processing/{jetType}_graphs_processed": idx,
                             f"Processing/{jetType}_progress_percent": (idx / len(base_graphs)) * 100,
                         })
                     
-                    # Periodic cleanup during processing
-                    if idx % 10_000 == 0:
+                    # Periodic cleanup during processing (reduced frequency for better performance)
+                    if idx % 100_000 == 0:
                         force_memory_cleanup()
                         log_gpu_memory(f"processing_{jetType}_{idx}")
                         
@@ -706,14 +691,16 @@ epochsTillQuit = 10
 def cleanup_tensors(*tensors):
     """Helper function to properly delete tensors and clear cache"""
     for tensor in tensors:
-        if tensor is not None:
-            # FIX: Check if it's a tensor before deleting
-            if hasattr(tensor, 'data'):
-                tensor.data = None
-            del tensor
+        if tensor is not None and hasattr(tensor, 'data'):
+            try:
+                # Only set data to None if it's a valid tensor
+                if tensor.data is not None:
+                    tensor.data = None
+            except:
+                pass  # Ignore any errors when setting data to None
+        del tensor
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-        # FIX: Also call garbage collection
         gc.collect()
 
 # Log training start
@@ -789,8 +776,8 @@ if maxEpochs > 0:
             # Also clean up the original unpacked variables
             del graphs
             
-            # Clear cache periodically
-            if batchIndex % 5 == 0:
+            # Clear cache periodically (reduced frequency for better performance)
+            if batchIndex % 50 == 0:
                 torch.cuda.empty_cache()
                 gc.collect()
 
@@ -1031,13 +1018,10 @@ if maxEpochs != 0:
                 concatenated_features, logits, predictions
             )
             del graphs, labels, logits_np, targets_np, predictions_np
-            # frequent cleanup during testing
-            if batch_idx % 10 == 0:
+            # Reduced frequency cleanup during testing (better performance)
+            if batch_idx % 100 == 0:
                 torch.cuda.empty_cache()
                 gc.collect()
-            
-            # Periodic cleanup during testing
-            torch.cuda.empty_cache()
 else:
     # Also set testing stage for maxEpochs == 0 case
     memory_monitor.set_stage("testing")
@@ -1075,8 +1059,8 @@ else:
             )
             del graphs, labels
             
-            # MEMORY FIX: Periodic cleanup during testing
-            if batch_idx % 10 == 0:
+            # Reduced frequency cleanup during testing (better performance)
+            if batch_idx % 100 == 0:
                 torch.cuda.empty_cache()
                 gc.collect()
 # Clear cache after testing
