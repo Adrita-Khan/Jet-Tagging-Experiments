@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import argparse
 import math
 import gc
+import threading
+import time
 
 from dgllife.utils import RandomSplitter
 import torch.nn as nn
@@ -46,6 +48,142 @@ load = True if args.load_model == 'Y' else False
 convergence_threshold = args.convergence_threshold
 
 
+def log_gpu_memory(stage=""):
+    """Simple memory logging - continuous monitoring is handled by ContinuousMemoryMonitor"""
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024**3
+        cached = torch.cuda.memory_reserved() / 1024**3
+        print(f"{stage} - GPU Memory: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+    else:
+        print(f"{stage} - GPU not available")
+    
+    # Also log CPU memory usage
+    import psutil
+    process = psutil.Process()
+    cpu_memory = process.memory_info().rss / 1024**3
+    cpu_percent = process.cpu_percent()
+    print(f"{stage} - CPU Memory: {cpu_memory:.2f}GB, CPU Usage: {cpu_percent:.1f}%")
+
+def force_memory_cleanup():
+    """Force aggressive memory cleanup"""
+    torch.cuda.empty_cache()
+    gc.collect()
+    # Force multiple garbage collection cycles
+    for _ in range(3):
+        gc.collect()
+    
+    # Log memory after cleanup
+    log_gpu_memory("after_cleanup")
+
+class ContinuousMemoryMonitor:
+    """Continuous memory monitoring"""
+    def __init__(self, interval=5):
+        self.interval = interval  # seconds
+        self.running = False
+        self.monitor_thread = None
+        self.start_time = None
+        self.current_stage = "preprocessing"
+        self.current_epoch = 0
+    
+    def set_stage(self, stage, epoch = 0):
+        """Set the current processing stage"""
+        self.current_stage = stage
+        self.current_epoch = epoch
+        print(f"Memory Monitoring stage: {stage}")
+
+    def start(self):
+        """Start continuous monitoring in background thread"""
+        if self.running:
+            return
+            
+        self.running = True
+        self.start_time = time.time()
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.monitor_thread.start()
+        print(f"Continuous memory monitoring started (every {self.interval} seconds)")
+        
+    def stop(self):
+        """Stop continuous monitoring"""
+        self.running = False
+        if self.monitor_thread:
+            self.monitor_thread.join(timeout=1)
+        print("Continuous memory monitoring stopped")
+        
+    def _monitor_loop(self):
+        """Background monitoring loop"""
+        while self.running:
+            try:
+                self._log_memory()
+                time.sleep(self.interval)
+            except Exception as e:
+                print(f"Memory monitoring error: {e}")
+                time.sleep(self.interval)
+                
+    def _log_memory(self):
+        """Log current memory state"""
+        # GPU Memory
+        if torch.cuda.is_available():
+            gpu_allocated = torch.cuda.memory_allocated() / 1024**3
+            gpu_cached = torch.cuda.memory_reserved() / 1024**3
+            gpu_utilization = (gpu_allocated / gpu_cached * 100) if gpu_cached > 0 else 0
+        else:
+            gpu_allocated = gpu_cached = gpu_utilization = 0
+            
+        # CPU Memory
+        import psutil
+        process = psutil.Process()
+        cpu_memory = process.memory_info().rss / 1024**3
+        cpu_percent = process.cpu_percent()
+        
+        # Calculate elapsed time
+        elapsed_time = time.time() - self.start_time if self.start_time else 0
+        
+        # Log to wandb continuously
+        log_data = {
+            "Memory_Continuous/GPU_allocated_GB": gpu_allocated,
+            "Memory_Continuous/GPU_cached_GB": gpu_cached,
+            "Memory_Continuous/GPU_utilization_percent": gpu_utilization,
+            "Memory_Continuous/CPU_RAM_GB": cpu_memory,
+            "Memory_Continuous/CPU_usage_percent": cpu_percent,
+        }
+
+        if self.current_stage == "preprocessing":
+            log_data["Memory_Continuous/preprocessing_elapsed_time_minutes"] = elapsed_time / 60
+            log_data["Memory_Continuous/stage"] = "preprocessing"
+        elif self.current_stage in ["training", "validation", "testing"]:
+            log_data["Memory_Continuous/current_epoch"] = self.current_epoch
+            log_data["Memory_Continuous/training_elapsed_time_minutes"] = elapsed_time / 60
+            log_data["Memory_Continuous/stage"] = self.current_stage
+
+        wandb.log(log_data)
+
+def log_memory_trends():
+    """Legacy function - now just logs current state"""
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024**3
+        cached = torch.cuda.memory_reserved() / 1024**3
+        peak_allocated = torch.cuda.max_memory_allocated() / 1024**3
+        peak_cached = torch.cuda.max_memory_reserved() / 1024**3
+        
+        wandb.log({
+            "Memory_Trends/GPU_allocated_GB": allocated,
+            "Memory_Trends/GPU_cached_GB": cached,
+            "Memory_Trends/GPU_peak_allocated_GB": peak_allocated,
+            "Memory_Trends/GPU_peak_cached_GB": peak_cached,
+            "Memory_Trends/GPU_utilization_percent": (allocated / cached * 100) if cached > 0 else 0,
+        })
+    
+    import psutil
+    process = psutil.Process()
+    cpu_memory = process.memory_info().rss / 1024**3
+    cpu_percent = process.cpu_percent()
+    
+    wandb.log({
+        "Memory_Trends/CPU_RAM_GB": cpu_memory,
+        "Memory_Trends/CPU_usage_percent": cpu_percent,
+        "Memory_Trends/CPU_peak_RAM_GB": process.memory_info().vms / 1024**3,  # Virtual memory size as peak
+    })
+
 # Start wandb logging
 wandb.init(
     project="All Interaction Features (On-the-fly)", 
@@ -60,14 +198,15 @@ wandb.init(
         "load_model": load
     }
 )
+
+# Initialize and start continuous memory monitoring
+memory_monitor = ContinuousMemoryMonitor(interval=10)  # Log every 10 seconds
+memory_monitor.start()
+
+# Log initial memory state
+log_gpu_memory("initial_state")
 print("wandb logging initialized successfully!")
-
-
-def log_gpu_memory(stage=""):
-    if torch.cuda.is_available():
-        allocated = torch.cuda.memory_allocated() / 1024**3
-        cached = torch.cuda.memory_reserved() / 1024**3
-        print(f"{stage} - GPU Memory: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+print("Continuous memory monitoring active - check wandb dashboard for real-time charts")
 
 # get pTmin
 def get_pTmin(part_i, part_j):
@@ -146,52 +285,58 @@ def compute_edge_weights(base_graph, points, weight_type, device):
     }
     weight_func = weight_functions[weight_type]
 
-    # Get edge index tensors (staying on CPU first)
+    # Get edge index tensors on CPU
     src_nodes, dst_nodes = base_graph.edges()
 
-    # Move node features to the target device
+    # Ensure node features are a CPU tensor
     if not isinstance(points, torch.Tensor):
-        points = torch.from_numpy(points).float().to(device)
-    else:
-        points = points.to(device)
+        points = torch.from_numpy(points).float()
 
-    src_points = points[src_nodes.to(device)].detach()
-    dst_points = points[dst_nodes.to(device)].detach()
+    # Gather CPU slices first, then move only the required data to GPU
+    src_points_cpu = points[src_nodes]
+    dst_points_cpu = points[dst_nodes]
 
-    # Vectorized weight computation for all edges
+    src_points = src_points_cpu.to(device, non_blocking=True)
+    dst_points = dst_points_cpu.to(device, non_blocking=True)
+
+    # Vectorized weight computation for all edges on GPU
     with torch.no_grad():
-        edge_weights = weight_func(src_points, dst_points)
+        edge_weights = weight_func(src_points, dst_points).detach().float()
 
-    # cleanup
-    del src_points, dst_points
+    # Move weights back to CPU immediately and cleanup GPU tensors
+    edge_weights_cpu = edge_weights.cpu()
+
+    # CRITICAL: Clean up GPU tensor before returning
+    del edge_weights
+    del src_points, dst_points, src_points_cpu, dst_points_cpu
     del src_nodes, dst_nodes
-
-    if not isinstance(base_graph.ndata['feat'], torch.Tensor) or base_graph.ndata['feat'].device != device:
+    if isinstance(points, torch.Tensor):
         del points
 
     torch.cuda.empty_cache()
-    return edge_weights
+    return edge_weights_cpu
 
 
 # Create new graph with same structure but different edge weights
 def create_weighted_graphs(base_graph, points, weight_type, device):
     # Get edge weights for the existing graph structure
-    edge_weights = compute_edge_weights(base_graph, points, weight_type, device)
+    edge_weights_cpu = compute_edge_weights(base_graph, points, weight_type, device)
 
-    # Create new graph with same structure
+    # Create new graph with same structure on CPU
     src_nodes, dst_nodes = base_graph.edges()
-    new_graph = dgl.graph((src_nodes.to(device), dst_nodes.to(device)), num_nodes=base_graph.num_nodes(), device=device)
+    new_graph = dgl.graph((src_nodes, dst_nodes), num_nodes=base_graph.num_nodes(), device='cpu')
 
     # Clean up edge node tensors after graph creation
     del src_nodes, dst_nodes
 
-    # Store edge weights in graph
-    new_graph.edata['weight'] = edge_weights.float()
+    # Store edge weights in graph (CPU)
+    new_graph.edata['weight'] = edge_weights_cpu
 
-    # Immediate cleanup of edge_weights to free GPU memory
-    del edge_weights
+    # Immediate cleanup of edge_weights to free memory
+    del edge_weights_cpu
 
-    node_features = base_graph.ndata['feat'].detach().to(device).clone()
+    # Keep node features on CPU
+    node_features = base_graph.ndata['feat'].detach().clone()
     new_graph.ndata['feat'] = node_features
 
     # Clean up the temporary node_features tensor
@@ -200,7 +345,7 @@ def create_weighted_graphs(base_graph, points, weight_type, device):
     # Copy any other node/graph metadata if present (to device)
     for key in base_graph.ndata.keys():
         if key != 'feat':
-            temp_data = base_graph.ndata[key].detach().to(device).clone()
+            temp_data = base_graph.ndata[key].detach().clone()
             new_graph.ndata[key] = temp_data
             del temp_data       #  Clean up temporary tensor
 
@@ -208,7 +353,7 @@ def create_weighted_graphs(base_graph, points, weight_type, device):
     assert new_graph.num_nodes() == base_graph.num_nodes(), "Node count mismatch!"
     assert new_graph.num_edges() == base_graph.num_edges(), "Edge count mismatch!"
 
-    # Final GPU cleanup
+    # Final GPU cleanup (weights were already moved off GPU)
     torch.cuda.empty_cache()
 
     return new_graph
@@ -223,12 +368,12 @@ class MultiGraphDataset(dgl.data.DGLDataset):
         self.use_gpu = use_gpu
 
         # Initialize lists for all graph types
-        self.base_graphs = []
         self.delta = []
         self.mSquare = []
         self.kT = []
         self.Z = []
         self.sampleCountPerClass = []
+        self.labels = []
 
         for jetType in tqdm(jetNames, total=len(jetNames), desc="Processing jet types"):
             if type(jetType) != list:
@@ -240,6 +385,13 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                 print(f"Loading {jetType}...")
                 with open(base_path, 'rb') as f:
                     base_graphs = pickle.load(f)
+                
+                # Log dataset size info
+                wandb.log({
+                    f"Dataset/{jetType}_graphs_count": len(base_graphs),
+                    f"Dataset/{jetType}_total_nodes": sum(g.num_nodes() for g in base_graphs),
+                    f"Dataset/{jetType}_total_edges": sum(g.num_edges() for g in base_graphs),
+                })
 
                 # Process each graph after loading
                 print(f"Processing ALL {len(base_graphs)} graphs for {jetType}... ... ...")
@@ -262,64 +414,80 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                     graph_Z = create_weighted_graphs(base_graph, points, 'Z', self.device)
                     graph_mSquare = create_weighted_graphs(base_graph, points, 'mSquare', self.device)
 
+                    # Graphs are already on CPU, just append them
+                    jetType_delta.append(graph_delta)
+                    jetType_kT.append(graph_kT)
+                    jetType_Z.append(graph_Z)
+                    jetType_mSquare.append(graph_mSquare)
 
-                    # Move ALL 4 graphs to CPU immediately
-                    jetType_delta.append(graph_delta.to('cpu'))
-                    jetType_kT.append(graph_kT.to('cpu'))
-                    jetType_Z.append(graph_Z.to('cpu'))
-                    jetType_mSquare.append(graph_mSquare.to('cpu'))
-
-                    # Clean GPU
+                    # Clean up references - including the base_graph 
                     del graph_delta, graph_kT, graph_Z, graph_mSquare
                     del points
+                    del base_graph  # Delete base graph immediately after use
 
+                    # Log progress every 1000 graphs (memory is handled by continuous monitor)
+                    if idx % 1000 == 0:
+                        wandb.log({
+                            f"Processing/{jetType}_graphs_processed": idx,
+                            f"Processing/{jetType}_progress_percent": (idx / len(base_graphs)) * 100,
+                        })
+                    
                     # Periodic cleanup during processing
                     if idx % 10_000 == 0:
-                        torch.cuda.empty_cache()
-                        gc.collect()
+                        force_memory_cleanup()
+                        log_gpu_memory(f"processing_{jetType}_{idx}")
                         
                 print(f"Generated all weighted graphs for {jetType}")
 
-                # Add ALL graphs from this jet class to main dataset
+                # Add ALL graphs from this jet class to main dataset (CPU only)
                 self.delta.extend(jetType_delta)
                 self.kT.extend(jetType_kT)
                 self.Z.extend(jetType_Z)
                 self.mSquare.extend(jetType_mSquare)
-                self.base_graphs.extend(base_graphs)
-                self.sampleCountPerClass.append(len(base_graphs))
+                class_count = len(base_graphs)
+                self.sampleCountPerClass.append(class_count)
+                # Create labels for this class immediately to avoid second pass
+                current_label = len(self.sampleCountPerClass) - 1
+                self.labels.extend([current_label] * class_count)
 
                 print(f"Added {len(base_graphs)} graphs from {jetType} to dataset")
+                
+                # Log completion metrics BEFORE cleanup
+                wandb.log({
+                    f"Completion/{jetType}_total_graphs": class_count,
+                    f"Completion/{jetType}_total_delta_graphs": len(jetType_delta),
+                    f"Completion/{jetType}_total_kT_graphs": len(jetType_kT),
+                    f"Completion/{jetType}_total_Z_graphs": len(jetType_Z),
+                    f"Completion/{jetType}_total_mSquare_graphs": len(jetType_mSquare),
+                })
                 
                 # Clean up this jet class data
                 del jetType_delta, jetType_kT, jetType_Z, jetType_mSquare
                 del base_graphs
 
-                # COMPLETE GPU CLEANUP before moving to next jet class
-                torch.cuda.empty_cache()
-                gc.collect()
+                # COMPLETE GPU AND CPU CLEANUP before moving to next jet class
+                force_memory_cleanup()
 
-                print(f"{jetType} COMPLETED - GPU completely cleared")
-
-                log_gpu_memory()
+                print(f"{jetType} COMPLETED - GPU and CPU completely cleared")
 
                 print("-" * 50)         # Visual separator between jet classes
         
-        self.labels = []
-        label = 0
-        for sampleCount in self.sampleCountPerClass:
+        for label, sampleCount in enumerate(self.sampleCountPerClass):
             print(f"Class {label} ({self.jetNames[label]}) has {sampleCount} samples")
-            for _ in range(sampleCount):
-                self.labels.append(label)
-            label += 1
         
         print(f"DATASET CREATION COMPLETED!")
         print(f"Total samples: {len(self.labels)}")
         print(f"Samples per class: {self.sampleCountPerClass}")
         
         # Final cleanup
-        torch.cuda.empty_cache()
-        gc.collect()
-        print("Final GPU cleanup completed")
+        force_memory_cleanup()
+        
+        # Extra aggressive cleanup at the end
+        for _ in range(2):
+            gc.collect()
+        
+        log_gpu_memory("After final cleanup")
+        print("Final GPU and CPU cleanup completed")
 
 
 
@@ -337,7 +505,7 @@ class MultiGraphDataset(dgl.data.DGLDataset):
         }
     
     def __len__(self):
-        return len(self.base_graphs)
+        return len(self.delta)
 
 # collate function for multiple graphs
 def collateFunction(batch):
@@ -441,6 +609,7 @@ wandb.log({
 
 # Create dataset with k=3
 print("Creating dataset...")
+memory_monitor.set_stage("preprocessing")
 dataset = MultiGraphDataset(jetNames, 3, loadFromDisk=False, device=device, use_gpu=True)
 dataset.process()
 
@@ -550,183 +719,205 @@ def cleanup_tensors(*tensors):
 # Log training start
 if maxEpochs > 0:
     print("Starting training...")
+    trainingStartTime = time.time()
 
-# Train the model
-for epoch in range(maxEpochs):
-    runningLoss = 0
-    totalCorrectPredictions = 0
-    totalSamples = 0
-    valTotalCorrectPredictions = 0
-    valTotalSamples = 0
+    # Train the model
+    for epoch in range(maxEpochs):
+        epochStartTime = time.time()
+        memory_monitor.set_stage("training", epoch + 1)
+        runningLoss = 0
+        totalCorrectPredictions = 0
+        totalSamples = 0
+        valTotalCorrectPredictions = 0
+        valTotalSamples = 0
     
-    # Set all models to training mode
-    for model in all_models:
-        model.train()
-    
-    for batchIndex, (graphs, labels) in tqdm(enumerate(trainLoader), total=len(trainLoader), leave=False):
-        # Unpack graphs
-        graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
-        labels = labels.to(device).long()
-
-        # Clear gradients before forward pass
-        optimizer.zero_grad()
-
-        # Get embeddings from each graph type
-        hg_delta = model_delta(graph_delta)
-        hg_kT = model_kT(graph_kT)
-        hg_mSquare = model_mSquare(graph_mSquare)
-        hg_Z = model_Z(graph_Z)
+        # Set all models to training mode
+        for model in all_models:
+            model.train()
         
-        # Concatenate embeddings 
-        concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
-        
-        # Get final logits from classifier
-        logits = classifier(concatenated_features)
-        
-        # Calculate loss and do backpropagation
-        loss = criterion(logits, labels)
-        loss.backward()
-        optimizer.step()
-        
-        # Update running loss
-        runningLoss += loss.item()
-
-        # Compute accuracy
-        with torch.no_grad():
-            predictions = logits.argmax(dim=1)
-            batchCorrectPredictions = (predictions == labels).sum().item()
-            batchTotalSamples = labels.numel()
-
-        totalCorrectPredictions += batchCorrectPredictions
-        totalSamples += batchTotalSamples
-
-        # MEMORY CLEANUP
-        cleanup_tensors(
-            graph_delta, graph_kT, graph_mSquare, graph_Z,
-            hg_delta, hg_kT, hg_mSquare, hg_Z, 
-            concatenated_features, logits, predictions, loss, labels
-        )
-
-        # Also clean up the original unpacked variables
-        del graphs
-        
-        
-        # Clear cache periodically
-        if batchIndex % 5 == 0:
-            torch.cuda.empty_cache()
-            gc.collect()
-
-        
-    log_gpu_memory(f"Training epoch {epoch+1}")
-
-    # Compute epoch statistics
-    epochLoss = runningLoss / len(trainLoader)
-    trainingLossTracker.append(epochLoss)
-    
-    epochAccuracy = totalCorrectPredictions / totalSamples
-    trainingAccuracyTracker.append(epochAccuracy)
-    
-    # Validation
-    for model in all_models:
-        model.eval()
-    validationLoss = 0.0
-
-    with torch.no_grad():
-        for graphs, labels in tqdm(validationLoader, total=len(validationLoader), leave=False):
+        for batchIndex, (graphs, labels) in tqdm(enumerate(trainLoader), total=len(trainLoader), leave=False):
+            # Log progress every 50 batches (memory is handled by continuous monitor)
+            if batchIndex % 50 == 0:
+                wandb.log({
+                    f"Training/epoch_{epoch+1}_batch_{batchIndex}": batchIndex,
+                    f"Training/epoch_{epoch+1}_batch_progress": (batchIndex / len(trainLoader)) * 100,
+                })
+            
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device).long()
 
-            # Get embeddings and logits
+            # Clear gradients before forward pass
+            optimizer.zero_grad()
+
+            # Get embeddings from each graph type
             hg_delta = model_delta(graph_delta)
             hg_kT = model_kT(graph_kT)
             hg_mSquare = model_mSquare(graph_mSquare)
             hg_Z = model_Z(graph_Z)
             
+            # Concatenate embeddings 
             concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
+            
+            # Get final logits from classifier
             logits = classifier(concatenated_features)
             
+            # Calculate loss and do backpropagation
             loss = criterion(logits, labels)
-            validationLoss += loss.item()
+            loss.backward()
+            optimizer.step()
             
-            predictions = logits.argmax(dim=1)
-            batchCorrectPredictions = (predictions == labels).sum().item()
-            batchTotalSamples = labels.numel()
-            
-            valTotalCorrectPredictions += batchCorrectPredictions
-            valTotalSamples += batchTotalSamples
-            
-            # VALIDATION MEMORY CLEANUP
+            # Update running loss
+            runningLoss += loss.item()
+
+            # Compute accuracy
+            with torch.no_grad():
+                predictions = logits.argmax(dim=1)
+                batchCorrectPredictions = (predictions == labels).sum().item()
+                batchTotalSamples = labels.numel()
+
+            totalCorrectPredictions += batchCorrectPredictions
+            totalSamples += batchTotalSamples
+
+            # MEMORY CLEANUP
             cleanup_tensors(
                 graph_delta, graph_kT, graph_mSquare, graph_Z,
-                hg_delta, hg_kT, hg_mSquare, hg_Z,
-                concatenated_features, logits, predictions, loss
+                hg_delta, hg_kT, hg_mSquare, hg_Z, 
+                concatenated_features, logits, predictions, loss, labels
             )
-            del graphs, labels
+
+            # Also clean up the original unpacked variables
+            del graphs
             
-    log_gpu_memory()
+            # Clear cache periodically
+            if batchIndex % 5 == 0:
+                torch.cuda.empty_cache()
+                gc.collect()
 
-    avgValidationLoss = validationLoss / len(validationLoader)
-    validationLossTracker.append(avgValidationLoss)
+        # Compute epoch statistics
+        epochLoss = runningLoss / len(trainLoader)
+        trainingLossTracker.append(epochLoss)
     
-    validationAccuracy = valTotalCorrectPredictions / valTotalSamples
-    validationAccuracyTracker.append(validationAccuracy)
+        epochAccuracy = totalCorrectPredictions / totalSamples
+        trainingAccuracyTracker.append(epochAccuracy)
 
-    # Check for convergence and ONLY save when improved
-    if avgValidationLoss < bestLoss - convergence_threshold:
-        bestLoss = avgValidationLoss
-        bestStateDict = {
-            'model_delta': model_delta.state_dict(),
-            'model_kT': model_kT.state_dict(),
-            'model_mSquare': model_mSquare.state_dict(),
-            'model_Z': model_Z.state_dict(),
-            'classifier': classifier.state_dict()
-        }
-        # Save model checkpoint only when improved
-        torch.save({
-            'model_delta': model_delta.state_dict(),
-            'model_kT': model_kT.state_dict(),
-            'model_mSquare': model_mSquare.state_dict(),
-            'model_Z': model_Z.state_dict(),
-            'classifier': classifier.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'epoch': epoch
-        }, modelSaveFile)
-        print(f'Saved Models to file {modelSaveFile} at epoch {epoch+1}')
-        epochs_without_improvement = 0
-    else:
-        epochs_without_improvement += 1
+        memory_monitor.set_stage("validation", epoch + 1)
+        # Validation
+        for model in all_models:
+            model.eval()
+        validationLoss = 0.0
 
-    # Clear cache after each epoch
-    torch.cuda.empty_cache()
-    gc.collect()
+        with torch.no_grad():
+            for val_batch_idx, (graphs, labels) in tqdm(enumerate(validationLoader), total=len(validationLoader), leave=False):
+                # Log validation progress every 20 batches
+                if val_batch_idx % 20 == 0:
+                    wandb.log({
+                        f"Validation/epoch_{epoch+1}_batch_{val_batch_idx}": val_batch_idx,
+                        f"Validation/epoch_{epoch+1}_progress": (val_batch_idx / len(validationLoader)) * 100,
+                    })
+                
+                # Unpack graphs
+                graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
+                labels = labels.to(device).long()
 
-    # Log gradient norm
-    grad_norm = 0
-    for model in all_models:
-        for p in model.parameters():
-            if p.grad is not None:
-                grad_norm += p.grad.data.norm(2).item()**2
-    grad_norm = grad_norm ** 0.5
+                # Get embeddings and logits
+                hg_delta = model_delta(graph_delta)
+                hg_kT = model_kT(graph_kT)
+                hg_mSquare = model_mSquare(graph_mSquare)
+                hg_Z = model_Z(graph_Z)
+                
+                concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
+                logits = classifier(concatenated_features)
+                
+                loss = criterion(logits, labels)
+                validationLoss += loss.item()
+                
+                predictions = logits.argmax(dim=1)
+                batchCorrectPredictions = (predictions == labels).sum().item()
+                batchTotalSamples = labels.numel()
+                
+                valTotalCorrectPredictions += batchCorrectPredictions
+                valTotalSamples += batchTotalSamples
+                
+                # VALIDATION MEMORY CLEANUP
+                cleanup_tensors(
+                    graph_delta, graph_kT, graph_mSquare, graph_Z,
+                    hg_delta, hg_kT, hg_mSquare, hg_Z,
+                    concatenated_features, logits, predictions, loss
+                )
+                del graphs, labels
+                
+        avgValidationLoss = validationLoss / len(validationLoader)
+        validationLossTracker.append(avgValidationLoss)
     
-    # Print training and validation losses
-    print(f"Epoch {epoch + 1} - Training Loss={epochLoss:.4f} - Validation Loss={avgValidationLoss:.4f} - Training Accuracy={epochAccuracy:.4f} - Validation Accuracy={validationAccuracy:.4f}")
-    
-    wandb.log({
-        "Epoch": epoch + 1,
-        "Training Loss": epochLoss,
-        "Validation Loss": avgValidationLoss,
-        "Training Accuracy": epochAccuracy,
-        "Validation Accuracy": validationAccuracy,
-        "Gradient Norm": grad_norm,
-        "Training/epochs_without_improvement": epochs_without_improvement,
-    })
+        validationAccuracy = valTotalCorrectPredictions / valTotalSamples
+        validationAccuracyTracker.append(validationAccuracy)
 
-    # Check convergence criteria
-    if epochs_without_improvement >= epochsTillQuit:
-        print(f'Convergence achieved at epoch {epoch + 1}. Stopping training.')
-        wandb.log({"Training/early_stopping": epoch + 1})
-        break
+        # Check for convergence and ONLY save when improved
+        if avgValidationLoss < bestLoss - convergence_threshold:
+            bestLoss = avgValidationLoss
+            bestStateDict = {
+                'model_delta': model_delta.state_dict(),
+                'model_kT': model_kT.state_dict(),
+                'model_mSquare': model_mSquare.state_dict(),
+                'model_Z': model_Z.state_dict(),
+                'classifier': classifier.state_dict()
+            }
+            # Save model checkpoint only when improved
+            torch.save({
+                'model_delta': model_delta.state_dict(),
+                'model_kT': model_kT.state_dict(),
+                'model_mSquare': model_mSquare.state_dict(),
+                'model_Z': model_Z.state_dict(),
+                'classifier': classifier.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'epoch': epoch
+            }, modelSaveFile)
+            print(f'Saved Models to file {modelSaveFile} at epoch {epoch+1}')
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        # Clear cache after each epoch
+        torch.cuda.empty_cache()
+        gc.collect()
+
+        # Log gradient norm
+        grad_norm = 0
+        for model in all_models:
+            for p in model.parameters():
+                if p.grad is not None:
+                    grad_norm += p.grad.data.norm(2).item()**2
+        grad_norm = grad_norm ** 0.5
+        
+        # Print training and validation losses
+        epochTime = time.time() - epochStartTime
+        totalTime = time.time() - trainingStartTime
+        print(f"Epoch {epoch + 1} - Training Loss={epochLoss:.4f} - Validation Loss={avgValidationLoss:.4f} - Training Accuracy={epochAccuracy:.4f} - Validation Accuracy={validationAccuracy:.4f} - Time={epochTime:.2f}s - Total Time={totalTime:.2f}s")
+        
+        wandb.log({
+            "Epoch": epoch + 1,
+            "Training Loss": epochLoss,
+            "Validation Loss": avgValidationLoss,
+            "Training Accuracy": epochAccuracy,
+            "Validation Accuracy": validationAccuracy,
+            "Gradient Norm": grad_norm,
+            "Training/epochs_without_improvement": epochs_without_improvement,
+            "Time/epoch_time_minutes": epochTime / 60,
+            "Time/total_training_time_hours": totalTime / 3600,
+            "Time/average_epoch_time_minutes": totalTime / (epoch + 1) / 60,
+        })
+
+        # SET BACK TO TRAINING after validation
+        memory_monitor.set_stage("training", epoch + 1)
+        
+        # Check convergence criteria
+        if epochs_without_improvement >= epochsTillQuit:
+            print(f'Convergence achieved at epoch {epoch + 1}. Stopping training.')
+            wandb.log({"Training/early_stopping": epoch + 1})
+            break
+
+        
 
 if maxEpochs != 0:
     torch.save(bestStateDict, modelSaveFile)
@@ -781,6 +972,8 @@ if maxEpochs != 0:
 
 # Testing and Evaluation
 print("Starting testing and evaluation...")
+# ADD THIS LINE before testing
+memory_monitor.set_stage("testing")
 
 logitsTracker = []
 predictionsTracker = []
@@ -797,6 +990,13 @@ import sklearn
 if maxEpochs != 0:
     with torch.no_grad():
         for batch_idx, (graphs, labels) in tqdm(testLoader, total=len(testLoader), leave=False):
+            # Log testing progress every 20 batches
+            if batch_idx % 20 == 0:
+                wandb.log({
+                    f"Testing/batch_{batch_idx}": batch_idx,
+                    f"Testing/progress": (batch_idx / len(testLoader)) * 100,
+                })
+            
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device)
@@ -811,24 +1011,26 @@ if maxEpochs != 0:
             logits = classifier(concatenated_features)
             
             # Convert to numpy immediately to save memory
-            logitsTracker.append(logits.detach().cpu().numpy())
-            targetsTracker.append(labels.detach().cpu().numpy())
+            logits_np = logits.detach().cpu().numpy()
+            targets_np = labels.detach().cpu().numpy()
+            logitsTracker.append(logits_np)
+            targetsTracker.append(targets_np)
 
             predictions = logits.argmax(dim=1)
-            predictionsTracker.append(predictions.detach().cpu().numpy())
+            predictions_np = predictions.detach().cpu().numpy()
+            predictionsTracker.append(predictions_np)
             
             # Update confusion matrix
             for idx, pred in enumerate(predictions):
                 cfs[pred][labels[idx]] += 1
 
-            
             # TESTING MEMORY CLEANUP
             cleanup_tensors(
                 graph_delta, graph_kT, graph_mSquare, graph_Z,
                 hg_delta, hg_kT, hg_mSquare, hg_Z,
                 concatenated_features, logits, predictions
             )
-            del graphs, labels
+            del graphs, labels, logits_np, targets_np, predictions_np
             # frequent cleanup during testing
             if batch_idx % 10 == 0:
                 torch.cuda.empty_cache()
@@ -837,6 +1039,8 @@ if maxEpochs != 0:
             # Periodic cleanup during testing
             torch.cuda.empty_cache()
 else:
+    # Also set testing stage for maxEpochs == 0 case
+    memory_monitor.set_stage("testing")
     with torch.no_grad():
         for batch_idx, (graphs, labels) in tqdm(enumerate(testLoader), total=len(testLoader), leave=False):
             # Unpack graphs
@@ -896,7 +1100,12 @@ with open(predictionsTrackerFile, 'wb') as f:
 
 # Clear large tracking lists after saving
 del logitsTracker, predictionsTracker, targetsTracker
+torch.cuda.empty_cache()
 gc.collect()
+
+# Force multiple garbage collection cycles to break reference cycles
+for _ in range(3):
+    gc.collect()
 
 print("Creating evaluation plots...")
 
@@ -912,6 +1121,10 @@ ax.set_ylabel('Predicted Values')
 print(cfs/np.sum(cfs))
 plt.savefig(f'{imageSavePath}/Confusion Matrix.png')
 plt.close()
+
+# Clear confusion matrix to free memory
+del cfs
+gc.collect()
 
 # ROC-AUC Curve
 from sklearn.metrics import roc_curve, auc
@@ -937,7 +1150,12 @@ plt.close()
 
 # Clear ROC data after use
 del rocLogits, rocTargets, logitsTracker, targetsTracker
+torch.cuda.empty_cache()
 gc.collect()
+
+# Force cleanup to break any remaining reference cycles
+for _ in range(2):
+    gc.collect()
 
 def calculateConfusionMetrics(confusion_matrix):
     num_classes = len(confusion_matrix)
@@ -987,6 +1205,9 @@ wandb.save(modelSaveFile)
 print("Training completed successfully!")
 wandb.finish()
 
+# Stop continuous memory monitoring
+memory_monitor.stop()
+
 # Final cleanup
 del dataset
 if 'train' in locals(): del train
@@ -998,5 +1219,24 @@ if 'testLoader' in locals(): del testLoader
 
 torch.cuda.empty_cache()
 gc.collect()
+
+# Final memory summary
+log_gpu_memory("final_summary")
+
+# Log final memory statistics to wandb
+if torch.cuda.is_available():
+    wandb.log({
+        "Final/GPU_peak_allocated_GB": torch.cuda.max_memory_allocated() / 1024**3,
+        "Final/GPU_peak_cached_GB": torch.cuda.max_memory_reserved() / 1024**3,
+        "Final/GPU_current_allocated_GB": torch.cuda.memory_allocated() / 1024**3,
+        "Final/GPU_current_cached_GB": torch.cuda.memory_reserved() / 1024**3,
+    })
+
+import psutil
+process = psutil.Process()
+wandb.log({
+    "Final/CPU_peak_RAM_GB": process.memory_info().vms / 1024**3,  # Virtual memory size as peak
+    "Final/CPU_current_RAM_GB": process.memory_info().rss / 1024**3,
+})
 
 print("Memory cleanup completed.")
