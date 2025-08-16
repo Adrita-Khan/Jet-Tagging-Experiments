@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/Adrita-Khan/Jet-Tagging)](https://github.com/Adrita-Khan/Jet-Tagging/issues)
-[![GitHub stars](https://img.shields.io/github/stars/Adrita-Khan/Jet-Tagging)](https://github.com/Adrita-Khan/Jet-Tagging/stargazers)  
+
 
 
 This repository focuses on **jet tagging**—classifying collimated sprays of particles (jets) from high-energy collisions and associating them with their originating particles. We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating four physics-motivated interaction features:
