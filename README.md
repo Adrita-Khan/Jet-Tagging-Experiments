@@ -31,16 +31,9 @@ cd Jet-Tagging
 pip install -r requirements.txt
 ````
 
-Download JetClass from [CERN Open Data](http://opendata.cern.ch/) and place it in `data/`.
 
-## Usage
 
-* **Notebook:** `notebooks/jet_tagging_analysis.ipynb`
-* **Script:**
 
-```bash
-python src/train_model.py --config configs/config.yaml
-```
 
 ## Structure
 
@@ -59,6 +52,17 @@ MIT License — see [LICENSE](LICENSE).
 ## Acknowledgements
 
 * [CERN Open Data Portal](http://opendata.cern.ch/)
+
+
+
+---
+
+## References
+
+1. [https://link.springer.com/article/10.1007/JHEP07(2024)247](https://link.springer.com/article/10.1007/JHEP07(2024)247)
+2. [https://proceedings.mlr.press/v162/qu22b.html](https://proceedings.mlr.press/v162/qu22b.html)
+3. [https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta](https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta)
+
 
 
 
