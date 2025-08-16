@@ -766,20 +766,8 @@ if maxEpochs > 0:
             totalCorrectPredictions += batchCorrectPredictions
             totalSamples += batchTotalSamples
 
-            # MEMORY CLEANUP
-            cleanup_tensors(
-                graph_delta, graph_kT, graph_mSquare, graph_Z,
-                hg_delta, hg_kT, hg_mSquare, hg_Z, 
-                concatenated_features, logits, predictions, loss, labels
-            )
-
-            # Also clean up the original unpacked variables
+            # Clean up only the unpacked variables (no heavy cleanup during training cycle)
             del graphs
-            
-            # Clear cache periodically (reduced frequency for better performance)
-            if batchIndex % 50 == 0:
-                torch.cuda.empty_cache()
-                gc.collect()
 
         # Compute epoch statistics
         epochLoss = runningLoss / len(trainLoader)
@@ -787,6 +775,11 @@ if maxEpochs > 0:
     
         epochAccuracy = totalCorrectPredictions / totalSamples
         trainingAccuracyTracker.append(epochAccuracy)
+
+        # COMPLETE TRAINING EPOCH CLEANUP
+        torch.cuda.empty_cache()
+        gc.collect()
+        log_gpu_memory(f"After training epoch {epoch+1}")
 
         memory_monitor.set_stage("validation", epoch + 1)
         # Validation
@@ -826,12 +819,7 @@ if maxEpochs > 0:
                 valTotalCorrectPredictions += batchCorrectPredictions
                 valTotalSamples += batchTotalSamples
                 
-                # VALIDATION MEMORY CLEANUP
-                cleanup_tensors(
-                    graph_delta, graph_kT, graph_mSquare, graph_Z,
-                    hg_delta, hg_kT, hg_mSquare, hg_Z,
-                    concatenated_features, logits, predictions, loss
-                )
+                # Clean up only the unpacked variables (no heavy cleanup during validation cycle)
                 del graphs, labels
                 
         avgValidationLoss = validationLoss / len(validationLoader)
@@ -839,6 +827,11 @@ if maxEpochs > 0:
     
         validationAccuracy = valTotalCorrectPredictions / valTotalSamples
         validationAccuracyTracker.append(validationAccuracy)
+
+        # COMPLETE VALIDATION EPOCH CLEANUP
+        torch.cuda.empty_cache()
+        gc.collect()
+        log_gpu_memory(f"After validation epoch {epoch+1}")
 
         # Check for convergence and ONLY save when improved
         if avgValidationLoss < bestLoss - convergence_threshold:
@@ -865,7 +858,7 @@ if maxEpochs > 0:
         else:
             epochs_without_improvement += 1
 
-        # Clear cache after each epoch
+        # EPOCH COMPLETE - Final cleanup for this epoch
         torch.cuda.empty_cache()
         gc.collect()
 
@@ -1011,22 +1004,13 @@ if maxEpochs != 0:
             for idx, pred in enumerate(predictions):
                 cfs[pred][labels[idx]] += 1
 
-            # TESTING MEMORY CLEANUP
-            cleanup_tensors(
-                graph_delta, graph_kT, graph_mSquare, graph_Z,
-                hg_delta, hg_kT, hg_mSquare, hg_Z,
-                concatenated_features, logits, predictions
-            )
+            # Clean up only the unpacked variables (no heavy cleanup during testing cycle)
             del graphs, labels, logits_np, targets_np, predictions_np
-            # Reduced frequency cleanup during testing (better performance)
-            if batch_idx % 100 == 0:
-                torch.cuda.empty_cache()
-                gc.collect()
 else:
     # Also set testing stage for maxEpochs == 0 case
     memory_monitor.set_stage("testing")
     with torch.no_grad():
-        for batch_idx, (graphs, labels) in tqdm(enumerate(testLoader), total=len(testLoader), leave=False):
+        for (graphs, labels) in tqdm(testLoader, total=len(testLoader), leave=False):
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device)
@@ -1051,21 +1035,12 @@ else:
             for idx, pred in enumerate(predictions):
                 cfs[pred][labels[idx]] += 1
             
-            # ENHANCED TESTING MEMORY CLEANUP - MEMORY FIX
-            cleanup_tensors(
-                graph_delta, graph_kT, graph_mSquare, graph_Z,
-                hg_delta, hg_kT, hg_mSquare, hg_Z,
-                concatenated_features, logits, predictions
-            )
+            # Clean up only the unpacked variables (no heavy cleanup during testing cycle)
             del graphs, labels
-            
-            # Reduced frequency cleanup during testing (better performance)
-            if batch_idx % 100 == 0:
-                torch.cuda.empty_cache()
-                gc.collect()
-# Clear cache after testing
+# COMPLETE TESTING PHASE CLEANUP
 torch.cuda.empty_cache()
 gc.collect()
+log_gpu_memory("After complete testing phase")
 
 # Save metrics
 os.makedirs('metrics', exist_ok=True)
