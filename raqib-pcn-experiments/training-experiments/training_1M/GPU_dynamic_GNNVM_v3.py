@@ -969,7 +969,7 @@ import sklearn
 
 if maxEpochs != 0:
     with torch.no_grad():
-        for batch_idx, (graphs, labels) in tqdm(testLoader, total=len(testLoader), leave=False):
+        for batch_idx, (graphs, labels) in enumerate(tqdm(testLoader, total=len(testLoader), leave=False)):
             # Log testing progress every 20 batches
             if batch_idx % 20 == 0:
                 wandb.log({
