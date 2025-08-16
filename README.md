@@ -8,7 +8,9 @@
 *Note: This project is ongoing and subject to continuous advancements and modifications.*
 ----
 
-This repository focuses on **jet tagging**—classifying collimated sprays of particles (jets) from high-energy collisions and associating them with their originating particles. We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating four physics-motivated interaction features:
+This repository focuses on **jet tagging**—classifying collimated sprays of particles (jets) from high-energy collisions and associating them with their originating particles. It is an **ongoing project** of the [Center for Computational and Data Sciences (CCDS)](https://ccds.ai/).
+
+We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating four physics-motivated interaction features:
 
 - `ln Δ`
 - `ln kT`
