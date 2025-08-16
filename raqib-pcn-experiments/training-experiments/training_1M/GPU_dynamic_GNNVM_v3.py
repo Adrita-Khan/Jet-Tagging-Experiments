@@ -61,8 +61,6 @@ def log_gpu_memory(stage=""):
     import psutil
     process = psutil.Process()
     cpu_memory = process.memory_info().rss / 1024**3
-    cpu_percent = process.cpu_percent()
-    print(f"{stage} - CPU Memory: {cpu_memory:.2f}GB, CPU Usage: {cpu_percent:.1f}%")
 
 def force_memory_cleanup():
     """Force aggressive memory cleanup"""
@@ -125,15 +123,13 @@ class ContinuousMemoryMonitor:
         if torch.cuda.is_available():
             gpu_allocated = torch.cuda.memory_allocated() / 1024**3
             gpu_cached = torch.cuda.memory_reserved() / 1024**3
-            gpu_utilization = (gpu_allocated / gpu_cached * 100) if gpu_cached > 0 else 0
         else:
-            gpu_allocated = gpu_cached = gpu_utilization = 0
+            gpu_allocated = gpu_cached = 0
             
         # CPU Memory
         import psutil
         process = psutil.Process()
         cpu_memory = process.memory_info().rss / 1024**3
-        cpu_percent = process.cpu_percent()
         
         # Calculate elapsed time
         elapsed_time = time.time() - self.start_time if self.start_time else 0
@@ -142,18 +138,14 @@ class ContinuousMemoryMonitor:
         log_data = {
             "Memory_Continuous/GPU_allocated_GB": gpu_allocated,
             "Memory_Continuous/GPU_cached_GB": gpu_cached,
-            "Memory_Continuous/GPU_utilization_percent": gpu_utilization,
             "Memory_Continuous/CPU_RAM_GB": cpu_memory,
-            "Memory_Continuous/CPU_usage_percent": cpu_percent,
         }
 
         if self.current_stage == "preprocessing":
             log_data["Memory_Continuous/preprocessing_elapsed_time_minutes"] = elapsed_time / 60
-            log_data["Memory_Continuous/stage"] = "preprocessing"
         elif self.current_stage in ["training", "validation", "testing"]:
             log_data["Memory_Continuous/current_epoch"] = self.current_epoch
             log_data["Memory_Continuous/training_elapsed_time_minutes"] = elapsed_time / 60
-            log_data["Memory_Continuous/stage"] = self.current_stage
 
         wandb.log(log_data)
 
@@ -176,11 +168,9 @@ def log_memory_trends():
     import psutil
     process = psutil.Process()
     cpu_memory = process.memory_info().rss / 1024**3
-    cpu_percent = process.cpu_percent()
     
     wandb.log({
         "Memory_Trends/CPU_RAM_GB": cpu_memory,
-        "Memory_Trends/CPU_usage_percent": cpu_percent,
         "Memory_Trends/CPU_peak_RAM_GB": process.memory_info().vms / 1024**3,  # Virtual memory size as peak
     })
 
@@ -200,7 +190,7 @@ wandb.init(
 )
 
 # Initialize and start continuous memory monitoring
-memory_monitor = ContinuousMemoryMonitor(interval=10)  # Log every 10 seconds
+memory_monitor = ContinuousMemoryMonitor(interval=30)  # Log every 30 seconds for cleaner dashboard
 memory_monitor.start()
 
 # Log initial memory state
@@ -373,13 +363,6 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                 print(f"Loading {jetType}...")
                 with open(base_path, 'rb') as f:
                     base_graphs = pickle.load(f)
-                
-                # Log dataset size info
-                wandb.log({
-                    f"Dataset/{jetType}_graphs_count": len(base_graphs),
-                    f"Dataset/{jetType}_total_nodes": sum(g.num_nodes() for g in base_graphs),
-                    f"Dataset/{jetType}_total_edges": sum(g.num_edges() for g in base_graphs),
-                })
 
                 # Process each graph after loading
                 print(f"Processing ALL {len(base_graphs)} graphs for {jetType}... ... ...")
@@ -409,13 +392,6 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                     # Clean up references - including the base_graph 
                     del graph_delta, graph_kT, graph_Z, graph_mSquare
                     del base_graph  # Delete base graph immediately after use
-
-                    # Log progress every 100,000 graphs (reduced frequency for better performance)
-                    if idx % 100_000 == 0:
-                        wandb.log({
-                            f"Processing/{jetType}_graphs_processed": idx,
-                            f"Processing/{jetType}_progress_percent": (idx / len(base_graphs)) * 100,
-                        })
                     
                     # Periodic cleanup during processing (reduced frequency for better performance)
                     if idx % 100_000 == 0:
@@ -436,15 +412,6 @@ class MultiGraphDataset(dgl.data.DGLDataset):
                 self.labels.extend([current_label] * class_count)
 
                 print(f"Added {len(base_graphs)} graphs from {jetType} to dataset")
-                
-                # Log completion metrics BEFORE cleanup
-                wandb.log({
-                    f"Completion/{jetType}_total_graphs": class_count,
-                    f"Completion/{jetType}_total_delta_graphs": len(jetType_delta),
-                    f"Completion/{jetType}_total_kT_graphs": len(jetType_kT),
-                    f"Completion/{jetType}_total_Z_graphs": len(jetType_Z),
-                    f"Completion/{jetType}_total_mSquare_graphs": len(jetType_mSquare),
-                })
                 
                 # Clean up this jet class data
                 del jetType_delta, jetType_kT, jetType_Z, jetType_mSquare
@@ -586,12 +553,6 @@ testingSet = [s + "-Testing" for s in testingSet]
 jetNames = testingSet
 print(jetNames)
 
-# Log dataset configuration
-wandb.log({
-    "Dataset/jet_names": jetNames,
-    "Dataset/num_jet_types": len(jetNames),
-})
-
 # Create dataset with k=3
 print("Creating dataset...")
 memory_monitor.set_stage("preprocessing")
@@ -604,14 +565,6 @@ if maxEpochs != 0:
     print("Creating data splits...")
     train, val, test = RandomSplitter().train_val_test_split(dataset, frac_train=0.8, frac_test=0.1, 
                                                          frac_val=0.1, random_state=42)
-    
-    # Log data split information
-    wandb.log({
-        "Dataset/train_size": len(train),
-        "Dataset/val_size": len(val),
-        "Dataset/test_size": len(test)
-    })
-    
 else:
     train = dataset
 
@@ -723,13 +676,6 @@ if maxEpochs > 0:
             model.train()
         
         for batchIndex, (graphs, labels) in tqdm(enumerate(trainLoader), total=len(trainLoader), leave=False):
-            # Log progress every 50 batches (memory is handled by continuous monitor)
-            if batchIndex % 50 == 0:
-                wandb.log({
-                    f"Training/epoch_{epoch+1}_batch_{batchIndex}": batchIndex,
-                    f"Training/epoch_{epoch+1}_batch_progress": (batchIndex / len(trainLoader)) * 100,
-                })
-            
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device).long()
@@ -788,14 +734,7 @@ if maxEpochs > 0:
         validationLoss = 0.0
 
         with torch.no_grad():
-            for val_batch_idx, (graphs, labels) in tqdm(enumerate(validationLoader), total=len(validationLoader), leave=False):
-                # Log validation progress every 20 batches
-                if val_batch_idx % 20 == 0:
-                    wandb.log({
-                        f"Validation/epoch_{epoch+1}_batch_{val_batch_idx}": val_batch_idx,
-                        f"Validation/epoch_{epoch+1}_progress": (val_batch_idx / len(validationLoader)) * 100,
-                    })
-                
+            for val_batch_idx, (graphs, labels) in tqdm(enumerate(validationLoader), total=len(validationLoader), leave=False):                
                 # Unpack graphs
                 graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
                 labels = labels.to(device).long()
@@ -882,10 +821,6 @@ if maxEpochs > 0:
             "Training Accuracy": epochAccuracy,
             "Validation Accuracy": validationAccuracy,
             "Gradient Norm": grad_norm,
-            "Training/epochs_without_improvement": epochs_without_improvement,
-            "Time/epoch_time_minutes": epochTime / 60,
-            "Time/total_training_time_hours": totalTime / 3600,
-            "Time/average_epoch_time_minutes": totalTime / (epoch + 1) / 60,
         })
 
         # SET BACK TO TRAINING after validation
@@ -894,7 +829,6 @@ if maxEpochs > 0:
         # Check convergence criteria
         if epochs_without_improvement >= epochsTillQuit:
             print(f'Convergence achieved at epoch {epoch + 1}. Stopping training.')
-            wandb.log({"Training/early_stopping": epoch + 1})
             break
 
         
@@ -910,8 +844,6 @@ except Exception as e:
     print(e)
 
 if maxEpochs != 0:
-    import matplotlib.pyplot as plt
-
     print("Creating training plots...")
     
     # Plot training loss
@@ -969,15 +901,8 @@ import sklearn
 
 if maxEpochs != 0:
     with torch.no_grad():
-        for batch_idx, (graphs, labels) in enumerate(tqdm(testLoader, total=len(testLoader), leave=False)):
-            # Log testing progress every 20 batches
-            if batch_idx % 20 == 0:
-                wandb.log({
-                    f"Testing/batch_{batch_idx}": batch_idx,
-                    f"Testing/progress": (batch_idx / len(testLoader)) * 100,
-                })
-            
-            # Unpack graphs
+        for batch_idx, (graphs, labels) in enumerate(tqdm(testLoader, total=len(testLoader), leave=False)):            
+            # Unpack graphs - graphs is already a tuple of 4 graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device)
 
@@ -1002,7 +927,7 @@ if maxEpochs != 0:
             
             # Update confusion matrix
             for idx, pred in enumerate(predictions):
-                cfs[pred][labels[idx]] += 1
+                cfs[pred.item()][labels[idx].item()] += 1
 
             # Clean up only the unpacked variables (no heavy cleanup during testing cycle)
             del graphs, labels, logits_np, targets_np, predictions_np
@@ -1010,7 +935,7 @@ else:
     # Also set testing stage for maxEpochs == 0 case
     memory_monitor.set_stage("testing")
     with torch.no_grad():
-        for (graphs, labels) in tqdm(testLoader, total=len(testLoader), leave=False):
+        for batch_idx, (graphs, labels) in tqdm(enumerate(testLoader), total=len(testLoader), leave=False):
             # Unpack graphs
             graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
             labels = labels.to(device)
@@ -1033,7 +958,7 @@ else:
             
             # Update confusion matrix
             for idx, pred in enumerate(predictions):
-                cfs[pred][labels[idx]] += 1
+                cfs[pred.item()][labels[idx].item()] += 1
             
             # Clean up only the unpacked variables (no heavy cleanup during testing cycle)
             del graphs, labels
@@ -1081,41 +1006,7 @@ print(cfs/np.sum(cfs))
 plt.savefig(f'{imageSavePath}/Confusion Matrix.png')
 plt.close()
 
-# Clear confusion matrix to free memory
-del cfs
-gc.collect()
-
-# ROC-AUC Curve
-from sklearn.metrics import roc_curve, auc
-import scikitplot as skplt
-
-# Load data back from files to avoid keeping large arrays in memory
-with open(logitsTrackerFile, 'rb') as f:
-    logitsTracker = pickle.load(f)
-
-with open(targetsTrackerFile, 'rb') as f:
-    targetsTracker = pickle.load(f)
-
-if maxEpochs != 0:
-    rocLogits = np.concatenate(logitsTracker, axis=0)
-    rocTargets = np.concatenate(targetsTracker, axis=0)
-else:
-    rocLogits = np.array(logitsTracker)
-    rocTargets = np.array(targetsTracker)
-
-skplt.metrics.plot_roc_curve(rocTargets, rocLogits, figsize=(8, 6), title=f'{classificationLevel} {modelArchitecture} ROC-AUC Curve')
-plt.savefig(f'{imageSavePath}/ROC-AUC.png')
-plt.close()
-
-# Clear ROC data after use
-del rocLogits, rocTargets, logitsTracker, targetsTracker
-torch.cuda.empty_cache()
-gc.collect()
-
-# Force cleanup to break any remaining reference cycles
-for _ in range(2):
-    gc.collect()
-
+# Calculate metrics BEFORE deleting confusion matrix
 def calculateConfusionMetrics(confusion_matrix):
     num_classes = len(confusion_matrix)
     metrics = []
@@ -1150,6 +1041,41 @@ metricsDF.loc['Macro Avg'] = macroAvg
 
 # Print the metrics table
 print(metricsDF)
+
+# Clear confusion matrix to free memory
+del cfs
+gc.collect()
+
+# ROC-AUC Curve
+from sklearn.metrics import roc_curve, auc
+import scikitplot as skplt
+
+# Load data back from files to avoid keeping large arrays in memory
+with open(logitsTrackerFile, 'rb') as f:
+    logitsTracker = pickle.load(f)
+
+with open(targetsTrackerFile, 'rb') as f:
+    targetsTracker = pickle.load(f)
+
+if maxEpochs != 0:
+    rocLogits = np.concatenate(logitsTracker, axis=0)
+    rocTargets = np.concatenate(targetsTracker, axis=0)
+else:
+    rocLogits = np.array(logitsTracker)
+    rocTargets = np.array(targetsTracker)
+
+skplt.metrics.plot_roc_curve(rocTargets, rocLogits, figsize=(8, 6), title=f'{classificationLevel} {modelArchitecture} ROC-AUC Curve')
+plt.savefig(f'{imageSavePath}/ROC-AUC.png')
+plt.close()
+
+# Clear ROC data after use
+del rocLogits, rocTargets, logitsTracker, targetsTracker
+torch.cuda.empty_cache()
+gc.collect()
+
+# Force cleanup to break any remaining reference cycles
+for _ in range(2):
+    gc.collect()
 wandb.log({
     "Results/micro_avg_accuracy": microAvg['Accuracy'],
     "Results/micro_avg_precision": microAvg['Precision'],
@@ -1181,21 +1107,5 @@ gc.collect()
 
 # Final memory summary
 log_gpu_memory("final_summary")
-
-# Log final memory statistics to wandb
-if torch.cuda.is_available():
-    wandb.log({
-        "Final/GPU_peak_allocated_GB": torch.cuda.max_memory_allocated() / 1024**3,
-        "Final/GPU_peak_cached_GB": torch.cuda.max_memory_reserved() / 1024**3,
-        "Final/GPU_current_allocated_GB": torch.cuda.memory_allocated() / 1024**3,
-        "Final/GPU_current_cached_GB": torch.cuda.memory_reserved() / 1024**3,
-    })
-
-import psutil
-process = psutil.Process()
-wandb.log({
-    "Final/CPU_peak_RAM_GB": process.memory_info().vms / 1024**3,  # Virtual memory size as peak
-    "Final/CPU_current_RAM_GB": process.memory_info().rss / 1024**3,
-})
 
 print("Memory cleanup completed.")
