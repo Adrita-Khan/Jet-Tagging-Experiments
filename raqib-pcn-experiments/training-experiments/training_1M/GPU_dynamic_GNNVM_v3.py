@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
 
-batch_size = 512
+batch_size = 1024
 
 # Add argumnet parser
 parser = argparse.ArgumentParser(description='Dynamic Multi-Graph PCN Training')
@@ -135,19 +135,11 @@ class ContinuousMemoryMonitor:
         elapsed_time = time.time() - self.start_time if self.start_time else 0
         
         # Log to wandb continuously
-        log_data = {
+        wandb.log({
             "Memory_Continuous/GPU_allocated_GB": gpu_allocated,
             "Memory_Continuous/GPU_cached_GB": gpu_cached,
             "Memory_Continuous/CPU_RAM_GB": cpu_memory,
-        }
-
-        if self.current_stage == "preprocessing":
-            log_data["Memory_Continuous/preprocessing_elapsed_time_minutes"] = elapsed_time / 60
-        elif self.current_stage in ["training", "validation", "testing"]:
-            log_data["Memory_Continuous/current_epoch"] = self.current_epoch
-            log_data["Memory_Continuous/training_elapsed_time_minutes"] = elapsed_time / 60
-
-        wandb.log(log_data)
+        })
 
 def log_memory_trends():
     """Legacy function - now just logs current state"""
@@ -189,8 +181,16 @@ wandb.init(
     }
 )
 
+# Define custom metrics to plot against time
+wandb.define_metric("Time_Minutes")
+wandb.define_metric("Training Loss", step_metric="Time_Minutes")
+wandb.define_metric("Validation Loss", step_metric="Time_Minutes")
+wandb.define_metric("Training Accuracy", step_metric="Time_Minutes")
+wandb.define_metric("Validation Accuracy", step_metric="Time_Minutes")
+wandb.define_metric("Gradient Norm", step_metric="Time_Minutes")
+
 # Initialize and start continuous memory monitoring
-memory_monitor = ContinuousMemoryMonitor(interval=30)  # Log every 30 seconds for cleaner dashboard
+memory_monitor = ContinuousMemoryMonitor(interval=20)  # Log every 20 seconds 
 memory_monitor.start()
 
 # Log initial memory state
@@ -812,7 +812,10 @@ if maxEpochs > 0:
         # Print training and validation losses
         epochTime = time.time() - epochStartTime
         totalTime = time.time() - trainingStartTime
-        print(f"Epoch {epoch + 1} - Training Loss={epochLoss:.4f} - Validation Loss={avgValidationLoss:.4f} - Training Accuracy={epochAccuracy:.4f} - Validation Accuracy={validationAccuracy:.4f} - Time={epochTime:.2f}s - Total Time={totalTime:.2f}s")
+        epochTimeMinutes = epochTime / 60.0
+        totalTimeMinutes = totalTime / 60.0
+        totalTimeHours = totalTime / 3600.0
+        print(f"Epoch {epoch + 1} - Training Loss={epochLoss:.4f} - Validation Loss={avgValidationLoss:.4f} - Training Accuracy={epochAccuracy:.4f} - Validation Accuracy={validationAccuracy:.4f} - Time={epochTimeMinutes:.2f}min - Total Time={totalTimeHours:.2f}h")
         
         wandb.log({
             "Epoch": epoch + 1,
@@ -821,6 +824,7 @@ if maxEpochs > 0:
             "Training Accuracy": epochAccuracy,
             "Validation Accuracy": validationAccuracy,
             "Gradient Norm": grad_norm,
+            "Time_Minutes": totalTimeMinutes,
         })
 
         # SET BACK TO TRAINING after validation
