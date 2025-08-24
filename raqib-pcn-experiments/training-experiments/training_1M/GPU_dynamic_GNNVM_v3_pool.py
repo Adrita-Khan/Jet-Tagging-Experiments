@@ -22,14 +22,14 @@ from torch.utils.data import DataLoader
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
 
-batch_size = 256
+batch_size = 1024
 
 # Add argumnet parser
 parser = argparse.ArgumentParser(description='Dynamic Multi-Graph PCN Training')
 parser.add_argument('--max_epochs', type=int, default=500, help='Maximum number of epochs (default: 500)')
 parser.add_argument('--batch_size', type=int, default=batch_size, help='Batch size (default: 512)')
 parser.add_argument('--device', type=str, default='cuda',choices=['cuda', 'cpu'], help='Device to use (default: cuda)')
-parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions', help=' (Classification levle default: All)')
+parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions-adaptive-pooling', help=' (Classification levle default: All)')
 parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}', help='Model architecture name (default: PCN)')
 parser.add_argument('--model_type', type=str, default='DGCNN', help='Model type (default: DGCNN)')
 parser.add_argument('--load_model', type=str, default='N', help='Load from save file (default: N)')
@@ -346,9 +346,9 @@ class MultiGraphDataset(dgl.data.DGLDataset):
 
         # Initialize lists for all graph types
         self.delta = []
-        self.mSquare = []
         self.kT = []
         self.Z = []
+        self.mSquare = []
         self.sampleCountPerClass = []
         self.labels = []
 
@@ -462,36 +462,36 @@ class MultiGraphDataset(dgl.data.DGLDataset):
 def collateFunction(batch):
     graphs_delta = [item['graph_delta'] for item in batch]
     graphs_kT = [item['graph_kT'] for item in batch]
-    graphs_mSquare = [item['graph_mSquare'] for item in batch]
     graphs_Z = [item['graph_Z'] for item in batch]
+    graphs_mSquare = [item['graph_mSquare'] for item in batch]
     labels = [item['label'] for item in batch]
     
     # Batch on CPU first, then move to GPU
     batched_graph_delta = dgl.batch(graphs_delta).to(device)
     batched_graph_kT = dgl.batch(graphs_kT).to(device)
-    batched_graph_mSquare = dgl.batch(graphs_mSquare).to(device)
     batched_graph_Z = dgl.batch(graphs_Z).to(device)
+    batched_graph_mSquare = dgl.batch(graphs_mSquare).to(device)
 
     # Ensure all node features AND edge weights are detached to prevent gradient tracking
     batched_graph_delta.ndata['feat'] = batched_graph_delta.ndata['feat'].detach()
     batched_graph_kT.ndata['feat'] = batched_graph_kT.ndata['feat'].detach()
-    batched_graph_mSquare.ndata['feat'] = batched_graph_mSquare.ndata['feat'].detach()
     batched_graph_Z.ndata['feat'] = batched_graph_Z.ndata['feat'].detach()
+    batched_graph_mSquare.ndata['feat'] = batched_graph_mSquare.ndata['feat'].detach()
     
     # Also detach edge weights to prevent gradient tracking
     if 'weight' in batched_graph_delta.edata:
         batched_graph_delta.edata['weight'] = batched_graph_delta.edata['weight'].detach()
     if 'weight' in batched_graph_kT.edata:
         batched_graph_kT.edata['weight'] = batched_graph_kT.edata['weight'].detach()
-    if 'weight' in batched_graph_mSquare.edata:
-        batched_graph_mSquare.edata['weight'] = batched_graph_mSquare.edata['weight'].detach()
     if 'weight' in batched_graph_Z.edata:
         batched_graph_Z.edata['weight'] = batched_graph_Z.edata['weight'].detach()
+    if 'weight' in batched_graph_mSquare.edata:
+        batched_graph_mSquare.edata['weight'] = batched_graph_mSquare.edata['weight'].detach()
 
     # CRITICAL FIX: Clear CPU graph lists after batching
-    del graphs_delta, graphs_kT, graphs_mSquare, graphs_Z
+    del graphs_delta, graphs_kT, graphs_Z, graphs_mSquare
     
-    return (batched_graph_delta, batched_graph_kT, batched_graph_mSquare, batched_graph_Z), torch.tensor(labels, device=device)
+    return (batched_graph_delta, batched_graph_kT, batched_graph_Z, batched_graph_mSquare), torch.tensor(labels, device=device)
 
 # GNN Feature Extractor
 class GNNFeatureExtractor(nn.Module):
@@ -525,12 +525,34 @@ class GNNFeatureExtractor(nn.Module):
 class Classifier(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(Classifier, self).__init__()
-        self.fc1 = torch.nn.Linear(input_dim, hidden_dim)
+        # input_dim is now the feature dimension (64), input shape is [batch_size, 4, 64]
+        # 1D convolution along the feature dimension
+        self.conv1d = torch.nn.Conv1d(in_channels=4, out_channels=8, kernel_size=3, padding=1)
+        self.conv1d_2 = torch.nn.Conv1d(in_channels=8, out_channels=4, kernel_size=3, padding=1)
+        
+        # Max pooling along the feature dimension
+        self.max_pool = torch.nn.AdaptiveMaxPool1d(hidden_dim)  # Pool to hidden_dim features
+        
+        # Final classification layers
+        self.fc1 = torch.nn.Linear(4 * hidden_dim, hidden_dim)  # 4 channels * hidden_dim features
         self.relu = torch.nn.ReLU()
         self.fc2 = torch.nn.Linear(hidden_dim, output_dim)
         self.dropout = torch.nn.Dropout(0.1)
 
     def forward(self, x):
+        # x shape: [batch_size, 4, 64] (4 graph types, 64 features each)
+        
+        # Apply 1D convolutions along feature dimension
+        x = F.relu(self.conv1d(x))  # [batch_size, 8, 64]
+        x = F.relu(self.conv1d_2(x))  # [batch_size, 4, 64]
+        
+        # Apply max pooling along feature dimension  
+        x = self.max_pool(x)  # [batch_size, 4, hidden_dim]
+        
+        # Flatten for final classification layers
+        x = x.view(x.size(0), -1)  # [batch_size, 4 * hidden_dim]
+        
+        # Final classification
         x = self.fc1(x)
         x = self.relu(x)
         x = self.dropout(x)
@@ -587,21 +609,27 @@ wandb.config.update({
     "in_feats": in_feats,
     "hidden_feats": hidden_feats,
     "out_feats": out_feats,
-    "model_save_file": modelSaveFile
+    "model_save_file": modelSaveFile,
+    "architecture_type": "matrix_based_conv_pooling",
+    "feature_combination": "vertical_stacking",  # [batch_size, 4, 64] instead of [batch_size, 256]
+    "conv1d_channels": "4->8->4",
+    "pooling_type": "adaptive_max_pool_1d"
 })
 
 chebFilterSize = 16
 
 if modelType == "DGCNN":
     # Create 4 feature extractors for each graph type
+    # Architecture: Each GNN extracts [batch_size, 64] features per graph type
+    # Then stacked vertically to create [batch_size, 4, 64] matrix for conv+pooling
     print("Creating models...")
     model_delta = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
     model_kT = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
     model_mSquare = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
     model_Z = GNNFeatureExtractor(in_feats, hidden_feats, chebFilterSize)
     
-    # Final classifier that takes concatenated features
-    classifier = Classifier(hidden_feats * 4, hidden_feats, out_feats)
+
+    classifier = Classifier(hidden_feats, hidden_feats, out_feats)
 
 else:
     print("Invalid selection. Only DGCNN supported for multi-graph!")
@@ -610,12 +638,12 @@ else:
 # Move models to device
 model_delta.to(device)
 model_kT.to(device)
-model_mSquare.to(device)
 model_Z.to(device)
+model_mSquare.to(device)
 classifier.to(device)
 
 # Create a list of all models for easier handling
-all_models = [model_delta, model_kT, model_mSquare, model_Z, classifier]
+all_models = [model_delta, model_kT, model_Z, model_mSquare, classifier]
 
 # Watch only the classifier to reduce memory overhead
 wandb.watch(classifier, log='gradients', log_freq=100)
@@ -625,8 +653,8 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW([
     {'params': model_delta.parameters()},
     {'params': model_kT.parameters()},
-    {'params': model_mSquare.parameters()},
     {'params': model_Z.parameters()},
+    {'params': model_mSquare.parameters()},
     {'params': classifier.parameters()}
 ], lr=1e-3)
 
@@ -676,7 +704,7 @@ if maxEpochs > 0:
         
         for batchIndex, (graphs, labels) in tqdm(enumerate(trainLoader), total=len(trainLoader), leave=False):
             # Unpack graphs
-            graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
+            graph_delta, graph_kT, graph_Z, graph_mSquare = graphs
             labels = labels.to(device).long()
 
             # Clear gradients before forward pass
@@ -685,11 +713,11 @@ if maxEpochs > 0:
             # Get embeddings from each graph type
             hg_delta = model_delta(graph_delta)
             hg_kT = model_kT(graph_kT)
-            hg_mSquare = model_mSquare(graph_mSquare)
             hg_Z = model_Z(graph_Z)
+            hg_mSquare = model_mSquare(graph_mSquare)
             
-            # Concatenate embeddings 
-            concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
+            # Stack embeddings vertically to create matrix [batch_size, 4, 64]
+            concatenated_features = torch.stack([hg_delta, hg_kT, hg_Z, hg_mSquare], dim=1)
             
             # Get final logits from classifier
             logits = classifier(concatenated_features)
@@ -711,7 +739,7 @@ if maxEpochs > 0:
             totalCorrectPredictions += batchCorrectPredictions
             totalSamples += batchTotalSamples
 
-            # Clean up only the unpacked variables (no heavy cleanup during training cycle)
+            # Clean up only the unpacked variables
             del graphs
 
         # Compute epoch statistics
@@ -735,16 +763,16 @@ if maxEpochs > 0:
         with torch.no_grad():
             for val_batch_idx, (graphs, labels) in tqdm(enumerate(validationLoader), total=len(validationLoader), leave=False):                
                 # Unpack graphs
-                graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
+                graph_delta, graph_kT, graph_Z, graph_mSquare = graphs
                 labels = labels.to(device).long()
 
                 # Get embeddings and logits
                 hg_delta = model_delta(graph_delta)
                 hg_kT = model_kT(graph_kT)
-                hg_mSquare = model_mSquare(graph_mSquare)
                 hg_Z = model_Z(graph_Z)
+                hg_mSquare = model_mSquare(graph_mSquare)
                 
-                concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
+                concatenated_features = torch.stack([hg_delta, hg_kT, hg_Z, hg_mSquare], dim=1)
                 logits = classifier(concatenated_features)
                 
                 loss = criterion(logits, labels)
@@ -777,16 +805,16 @@ if maxEpochs > 0:
             bestStateDict = {
                 'model_delta': model_delta.state_dict(),
                 'model_kT': model_kT.state_dict(),
-                'model_mSquare': model_mSquare.state_dict(),
                 'model_Z': model_Z.state_dict(),
+                'model_mSquare': model_mSquare.state_dict(),
                 'classifier': classifier.state_dict()
             }
             # Save model checkpoint only when improved
             torch.save({
                 'model_delta': model_delta.state_dict(),
                 'model_kT': model_kT.state_dict(),
-                'model_mSquare': model_mSquare.state_dict(),
                 'model_Z': model_Z.state_dict(),
+                'model_mSquare': model_mSquare.state_dict(),
                 'classifier': classifier.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch
@@ -906,16 +934,16 @@ if maxEpochs != 0:
     with torch.no_grad():
         for batch_idx, (graphs, labels) in enumerate(tqdm(testLoader, total=len(testLoader), leave=False)):            
             # Unpack graphs - graphs is already a tuple of 4 graphs
-            graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
+            graph_delta, graph_kT, graph_Z, graph_mSquare = graphs
             labels = labels.to(device)
 
             # Get embeddings and logits
             hg_delta = model_delta(graph_delta)
             hg_kT = model_kT(graph_kT)
-            hg_mSquare = model_mSquare(graph_mSquare)
             hg_Z = model_Z(graph_Z)
+            hg_mSquare = model_mSquare(graph_mSquare)
             
-            concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
+            concatenated_features = torch.stack([hg_delta, hg_kT, hg_Z, hg_mSquare], dim=1)
             logits = classifier(concatenated_features)
             
             # Convert to numpy immediately to save memory
@@ -940,16 +968,16 @@ else:
     with torch.no_grad():
         for batch_idx, (graphs, labels) in tqdm(enumerate(testLoader), total=len(testLoader), leave=False):
             # Unpack graphs
-            graph_delta, graph_kT, graph_mSquare, graph_Z = graphs
+            graph_delta, graph_kT, graph_Z, graph_mSquare = graphs
             labels = labels.to(device)
 
             # Get embeddings and logits
             hg_delta = model_delta(graph_delta)
             hg_kT = model_kT(graph_kT)
-            hg_mSquare = model_mSquare(graph_mSquare)
             hg_Z = model_Z(graph_Z)
+            hg_mSquare = model_mSquare(graph_mSquare)
             
-            concatenated_features = torch.cat([hg_delta, hg_kT, hg_mSquare, hg_Z], dim=1)
+            concatenated_features = torch.stack([hg_delta, hg_kT, hg_Z, hg_mSquare], dim=1)
             logits = classifier(concatenated_features)
             
             # Convert to lists immediately
