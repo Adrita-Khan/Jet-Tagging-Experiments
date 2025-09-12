@@ -22,15 +22,15 @@ from torch.utils.data import DataLoader
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
 
-batch_size = 1024
+batch_size = 256
 
 # Add argumnet parser
 parser = argparse.ArgumentParser(description='Dynamic Multi-Graph PCN Training')
 parser.add_argument('--max_epochs', type=int, default=500, help='Maximum number of epochs (default: 500)')
 parser.add_argument('--batch_size', type=int, default=batch_size, help='Batch size (default: 512)')
 parser.add_argument('--device', type=str, default='cuda',choices=['cuda', 'cpu'], help='Device to use (default: cuda)')
-parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions-adaptive-pooling', help=' (Classification levle default: All)')
-parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}', help='Model architecture name (default: PCN)')
+parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions-max-pooling', help=' (Classification level default: All)')
+parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-ReduceLROnPlateau', help='Model architecture name (default: PCN)')
 parser.add_argument('--model_type', type=str, default='DGCNN', help='Model type (default: DGCNN)')
 parser.add_argument('--load_model', type=str, default='N', help='Load from save file (default: N)')
 parser.add_argument('--convergence_threshold', type=float, default=0.0001, help='Convergence threshold (default: 0.0001)')
@@ -165,37 +165,7 @@ def log_memory_trends():
         "Memory_Trends/CPU_peak_RAM_GB": process.memory_info().vms / 1024**3,  # Virtual memory size as peak
     })
 
-# Start wandb logging
-wandb.init(
-    project="All Interaction Features (On-the-fly)", 
-    name=f"{classificationLevel}-{modelArchitecture}",
-    config={
-        "epochs": maxEpochs,
-        "batch_size": batchSize,
-        "model": modelArchitecture,
-        "model_type": modelType,
-        "device": device,
-        "convergence_threshold": convergence_threshold,
-        "load_model": load
-    }
-)
 
-# Define custom metrics to plot against time
-wandb.define_metric("Time_Minutes")
-wandb.define_metric("Training Loss", step_metric="Time_Minutes")
-wandb.define_metric("Validation Loss", step_metric="Time_Minutes")
-wandb.define_metric("Training Accuracy", step_metric="Time_Minutes")
-wandb.define_metric("Validation Accuracy", step_metric="Time_Minutes")
-wandb.define_metric("Gradient Norm", step_metric="Time_Minutes")
-
-# Initialize and start continuous memory monitoring
-memory_monitor = ContinuousMemoryMonitor(interval=20)  # Log every 20 seconds 
-memory_monitor.start()
-
-# Log initial memory state
-log_gpu_memory("initial_state")
-print("wandb logging initialized successfully!")
-print("Continuous memory monitoring active - check wandb dashboard for real-time charts")
 
 # get pTmin
 def get_pTmin(part_i, part_j):
@@ -527,36 +497,28 @@ class Classifier(torch.nn.Module):
         super(Classifier, self).__init__()
         # input_dim is now the feature dimension (64), input shape is [batch_size, 4, 64]
         # 1D convolution along the feature dimension
-        self.conv1d = torch.nn.Conv1d(in_channels=4, out_channels=8, kernel_size=3, padding=1)
-        self.conv1d_2 = torch.nn.Conv1d(in_channels=8, out_channels=4, kernel_size=3, padding=1)
+        self.conv1d = torch.nn.Conv1d(in_channels=4, out_channels=4, kernel_size=3, padding=1)
+        self.conv1d_2 = torch.nn.Conv1d(in_channels=4, out_channels=4, kernel_size=3, padding=1)
         
-        # Max pooling along the feature dimension
-        self.max_pool = torch.nn.AdaptiveMaxPool1d(hidden_dim)  # Pool to hidden_dim features
+        # Max pooling across channels (graph types) 
+        # This will pool across the 4 channels to get [batch_size, 64]
         
-        # Final classification layers
-        self.fc1 = torch.nn.Linear(4 * hidden_dim, hidden_dim)  # 4 channels * hidden_dim features
-        self.relu = torch.nn.ReLU()
-        self.fc2 = torch.nn.Linear(hidden_dim, output_dim)
-        self.dropout = torch.nn.Dropout(0.1)
+
+        # Final classification layer - only one FC layer
+        self.fc = torch.nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
         # x shape: [batch_size, 4, 64] (4 graph types, 64 features each)
         
         # Apply 1D convolutions along feature dimension
-        x = F.relu(self.conv1d(x))  # [batch_size, 8, 64]
+        x = F.relu(self.conv1d(x))  # [batch_size, 4, 64]
         x = F.relu(self.conv1d_2(x))  # [batch_size, 4, 64]
         
-        # Apply max pooling along feature dimension  
-        x = self.max_pool(x)  # [batch_size, 4, hidden_dim]
-        
-        # Flatten for final classification layers
-        x = x.view(x.size(0), -1)  # [batch_size, 4 * hidden_dim]
+        # Apply max pooling across channels (graph types) to get [batch_size, 64]
+        x = torch.max(x, dim=1)[0]  # [batch_size, 64]
         
         # Final classification
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        x = self.fc2(x)
+        x = self.fc(x)
         return x
 
 
@@ -573,6 +535,66 @@ testingSet = [s + "-Testing" for s in testingSet]
 
 jetNames = testingSet
 print(jetNames)
+
+# Generate unique model filename to avoid overwriting - MOVED HERE BEFORE WANDB INIT
+os.makedirs("modelSaveFiles", exist_ok=True)
+base_filename = classificationLevel + modelArchitecture
+base_model_path = f"modelSaveFiles/{base_filename}.pt"
+
+# Check if the base filename exists and increment version if needed
+if os.path.exists(base_model_path):
+    version = 1
+    while True:
+        versioned_filename = f"{base_filename}_{version}"
+        versioned_model_path = f"modelSaveFiles/{versioned_filename}.pt"
+        if not os.path.exists(versioned_model_path):
+            modelSaveFile = versioned_model_path
+            print(f"Model will be saved as: {versioned_filename}.pt (version {version})")
+            break
+        version += 1
+else:
+    modelSaveFile = base_model_path
+    print(f"Model will be saved as: {base_filename}.pt (first version)")
+
+# Extract the versioned filename (without path and extension) for consistent naming
+versioned_model_name = os.path.splitext(os.path.basename(modelSaveFile))[0]
+
+# Start wandb logging with versioned name
+wandb.init(
+    project="All Interaction Features (On-the-fly)", 
+    name=versioned_model_name,
+    config={
+        "epochs": maxEpochs,
+        "batch_size": batchSize,
+        "model": modelArchitecture,
+        "model_type": modelType,
+        "device": device,
+        "convergence_threshold": convergence_threshold,
+        "load_model": load,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_factor": 0.5,
+        "scheduler_patience": 5,
+        "scheduler_min_lr": 1e-7
+    }
+)
+
+# Define custom metrics to plot against time
+wandb.define_metric("Time_Minutes")
+wandb.define_metric("Training Loss", step_metric="Time_Minutes")
+wandb.define_metric("Validation Loss", step_metric="Time_Minutes")
+wandb.define_metric("Training Accuracy", step_metric="Time_Minutes")
+wandb.define_metric("Validation Accuracy", step_metric="Time_Minutes")
+wandb.define_metric("Gradient Norm", step_metric="Time_Minutes")
+wandb.define_metric("Learning Rate", step_metric="Time_Minutes")
+
+# Initialize and start continuous memory monitoring
+memory_monitor = ContinuousMemoryMonitor(interval=20)  # Log every 20 seconds 
+memory_monitor.start()
+
+# Log initial memory state
+log_gpu_memory("initial_state")
+print("wandb logging initialized successfully!")
+print("Continuous memory monitoring active - check wandb dashboard for real-time charts")
 
 # Create dataset with k=3
 print("Creating dataset...")
@@ -596,9 +618,7 @@ if maxEpochs != 0:
 else:
     testLoader = DataLoader(train, batch_size=batchSize, shuffle=True, collate_fn=collateFunction, drop_last=True)
 
-# Create modelSaveFiles directory if it doesn't exist
-os.makedirs("modelSaveFiles", exist_ok=True)
-modelSaveFile = "modelSaveFiles/" + classificationLevel + modelArchitecture + ".pt"
+
 
 in_feats = 16
 hidden_feats = 64
@@ -610,10 +630,10 @@ wandb.config.update({
     "hidden_feats": hidden_feats,
     "out_feats": out_feats,
     "model_save_file": modelSaveFile,
-    "architecture_type": "matrix_based_conv_pooling",
+    "architecture_type": "matrix_based_conv_max_pooling_with_scheduler",
     "feature_combination": "vertical_stacking",  # [batch_size, 4, 64] instead of [batch_size, 256]
-    "conv1d_channels": "4->8->4",
-    "pooling_type": "adaptive_max_pool_1d"
+    "conv1d_channels": "4->4->4",
+    "pooling_type": "channel_max_pooling"
 })
 
 chebFilterSize = 16
@@ -657,6 +677,11 @@ optimizer = torch.optim.AdamW([
     {'params': model_mSquare.parameters()},
     {'params': classifier.parameters()}
 ], lr=1e-3)
+
+# Add ReduceLROnPlateau scheduler
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.5, patience=5, verbose=True, min_lr=1e-7
+)
 
 trainingLossTracker = []
 trainingAccuracyTracker = []
@@ -794,6 +819,9 @@ if maxEpochs > 0:
         validationAccuracy = valTotalCorrectPredictions / valTotalSamples
         validationAccuracyTracker.append(validationAccuracy)
 
+        # Step the scheduler with validation loss
+        scheduler.step(avgValidationLoss)
+
         # COMPLETE VALIDATION EPOCH CLEANUP
         torch.cuda.empty_cache()
         gc.collect()
@@ -851,6 +879,7 @@ if maxEpochs > 0:
             "Training Accuracy": epochAccuracy,
             "Validation Accuracy": validationAccuracy,
             "Gradient Norm": grad_norm,
+            "Learning Rate": optimizer.param_groups[0]['lr'],
             "Time_Minutes": totalTimeMinutes,
         })
 
@@ -867,8 +896,8 @@ if maxEpochs > 0:
 if maxEpochs != 0:
     torch.save(bestStateDict, modelSaveFile)
 
-# Create directory for saving plots
-imageSavePath = f'{classificationLevel} {modelArchitecture}'
+# Create directory for saving plots using versioned name
+imageSavePath = f'{versioned_model_name}'
 try:
     os.mkdir(imageSavePath)
 except Exception as e:
@@ -880,7 +909,7 @@ if maxEpochs != 0:
     # Plot training loss
     plt.figure()
     plt.plot(range(len(trainingLossTracker)), trainingLossTracker)
-    plt.title(f'{classificationLevel} {modelArchitecture} Training Loss Graph')
+    plt.title(f'{versioned_model_name} Training Loss Graph')
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.savefig(f'{imageSavePath}/Training Loss.png')
@@ -889,7 +918,7 @@ if maxEpochs != 0:
     # Plot training accuracy
     plt.figure()
     plt.plot(range(len(trainingAccuracyTracker)), trainingAccuracyTracker)
-    plt.title(f'{classificationLevel} {modelArchitecture} Training Accuracy Graph')
+    plt.title(f'{versioned_model_name} Training Accuracy Graph')
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.savefig(f'{imageSavePath}/Training Accuracy.png')
@@ -898,7 +927,7 @@ if maxEpochs != 0:
     # Plot validation loss
     plt.figure()
     plt.plot(range(len(validationLossTracker)), validationLossTracker)
-    plt.title(f'{classificationLevel} {modelArchitecture} Validation Loss Graph')
+    plt.title(f'{versioned_model_name} Validation Loss Graph')
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.savefig(f'{imageSavePath}/Validation Loss.png')
@@ -907,7 +936,7 @@ if maxEpochs != 0:
     # Plot validation accuracy
     plt.figure()
     plt.plot(range(len(validationAccuracyTracker)), validationAccuracyTracker)
-    plt.title(f'{classificationLevel} {modelArchitecture} Validation Accuracy Graph')
+    plt.title(f'{versioned_model_name} Validation Accuracy Graph')
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.savefig(f'{imageSavePath}/Validation Accuracy.png')
@@ -998,11 +1027,11 @@ torch.cuda.empty_cache()
 gc.collect()
 log_gpu_memory("After complete testing phase")
 
-# Save metrics
+# Save metrics using versioned name
 os.makedirs('metrics', exist_ok=True)
-logitsTrackerFile = f'metrics/{classificationLevel}-{modelArchitecture}-Logits.pkl'
-targetsTrackerFile = f'metrics/{classificationLevel}-{modelArchitecture}-Targets.pkl'
-predictionsTrackerFile = f'metrics/{classificationLevel}-{modelArchitecture}-Predictions.pkl'
+logitsTrackerFile = f'metrics/{versioned_model_name}-Logits.pkl'
+targetsTrackerFile = f'metrics/{versioned_model_name}-Targets.pkl'
+predictionsTrackerFile = f'metrics/{versioned_model_name}-Predictions.pkl'
 
 with open(logitsTrackerFile, 'wb') as f:
     pickle.dump(logitsTracker, f)
@@ -1029,7 +1058,7 @@ fig = plt.gcf()
 fig.set_size_inches(15, 15)
 
 ax = sns.heatmap(cfs/np.sum(cfs), annot=True, cmap='Blues')
-ax.set_title(f'{classificationLevel} {modelArchitecture} Confusion Matrix')
+ax.set_title(f'{versioned_model_name} Confusion Matrix')
 ax.set_xlabel('Actual Values')
 ax.set_ylabel('Predicted Values')
 
@@ -1095,7 +1124,7 @@ else:
     rocLogits = np.array(logitsTracker)
     rocTargets = np.array(targetsTracker)
 
-skplt.metrics.plot_roc_curve(rocTargets, rocLogits, figsize=(8, 6), title=f'{classificationLevel} {modelArchitecture} ROC-AUC Curve')
+skplt.metrics.plot_roc_curve(rocTargets, rocLogits, figsize=(8, 6), title=f'{versioned_model_name} ROC-AUC Curve')
 plt.savefig(f'{imageSavePath}/ROC-AUC.png')
 plt.close()
 
