@@ -62,6 +62,7 @@ MIT License — see [LICENSE](LICENSE).
 1. [https://link.springer.com/article/10.1007/JHEP07(2024)247](https://link.springer.com/article/10.1007/JHEP07(2024)247)
 2. [https://proceedings.mlr.press/v162/qu22b.html](https://proceedings.mlr.press/v162/qu22b.html)
 3. [https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta](https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta)
+4. https://journals.aps.org/prd/abstract/10.1103/PhysRevD.101.056019
 
 
 
