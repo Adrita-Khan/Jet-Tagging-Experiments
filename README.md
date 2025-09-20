@@ -51,20 +51,16 @@ MIT License — see [LICENSE](LICENSE).
 
 ## Acknowledgements
 
-* [CERN Open Data Portal](http://opendata.cern.ch/)
-
-
-
----
+- [CERN Open Data Portal](http://opendata.cern.ch/) for providing high-quality collision data
+- Original PCN authors for the base architecture
 
 ## References
 
-1. [https://link.springer.com/article/10.1007/JHEP07(2024)247](https://link.springer.com/article/10.1007/JHEP07(2024)247)
-2. [https://proceedings.mlr.press/v162/qu22b.html](https://proceedings.mlr.press/v162/qu22b.html)
-3. [https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta](https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta)
-4. https://journals.aps.org/prd/abstract/10.1103/PhysRevD.101.056019
-
-
+1. [JetClass: A Large-Scale Dataset for Deep Learning in Jet Physics](https://link.springer.com/article/10.1007/JHEP07(2024)247)
+2. [Particle Chebyshev Network (PCN)](https://proceedings.mlr.press/v162/qu22b.html)  
+3. [The Lund Jet Plane](https://link.springer.com/article/10.1007/JHEP12(2018)064)
+4. [Jet Substructure and Machine Learning](https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta)
+5. [QCD Analysis of Jet Substructure](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.101.056019)
 
 
 ---
