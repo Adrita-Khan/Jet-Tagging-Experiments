@@ -1,4 +1,4 @@
-# Physics-Informed Interaction Feature Guided Explainable Particle Chebyshev Networks (E-PCN) for Jet Tagging
+
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
