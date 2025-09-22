@@ -61,6 +61,7 @@ MIT License — see [LICENSE](LICENSE).
 3. [The Lund Jet Plane](https://link.springer.com/article/10.1007/JHEP12(2018)064)
 4. [Jet Substructure and Machine Learning](https://iopscience.iop.org/article/10.1088/1674-1137/ad7f3d/meta)
 5. [Jet tagging via particle clouds](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.101.056019)
+6. [PCN-Jet-Tagging GitHub Repository](https://github.com/YVSemlani/PCN-Jet-Tagging)
 
 
 ---
