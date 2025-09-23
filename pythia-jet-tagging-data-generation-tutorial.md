@@ -750,7 +750,7 @@ print(f"Classification accuracy: {accuracy:.3f}")
 
 - [Pythia Tutorials YouTube Playlist](https://www.youtube.com/playlist?list=PLLybgCU6QCGVVHyd0MhofUJYNzDifH-R9)  
   A series of video tutorials covering various aspects of using Pythia for event generation. 
-
+[https://ilmonteux.github.io/2018/10/15/jet-tagging-cnn.html](https://ilmonteux.github.io/2018/10/15/jet-tagging-cnn.html)
 
 
 
