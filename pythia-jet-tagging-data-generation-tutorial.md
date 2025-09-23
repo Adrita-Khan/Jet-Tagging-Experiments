@@ -706,18 +706,51 @@ print(f"Classification accuracy: {accuracy:.3f}")
 4. **Detector simulation**: Add realistic detector effects using Delphes
 5. **Systematic studies**: Generate datasets with different systematic variations
 
-## References
 
-- PYTHIA 8.315 Manual
-- JetClass: A Large-Scale Dataset for Deep Learning in Jet Physics
-- Sample Main Programs in Pythia documentation
 
-[https://pythia.org/](https://pythia.org/)
-[https://pythia.org/latest-manual/](https://pythia.org/latest-manual/)
-[https://fastjet.fr/](https://fastjet.fr/)
-[https://indico.cern.ch/event/1019437/contributions/4329732/attachments/2233233/3784547/JetClustering_and_bTagging.pdf](https://indico.cern.ch/event/1019437/contributions/4329732/attachments/2233233/3784547/JetClustering_and_bTagging.pdf)
-[https://github.com/rappoccio/PythiaGenJets](https://github.com/rappoccio/PythiaGenJets)
-[https://www.pythia.org/pdfdoc/worksheet8300.pdf](https://www.pythia.org/pdfdoc/worksheet8300.pdf)
+# Resources on Pythia, FastJet, and Jet Analysis
+
+## Official Tools and Documentation
+
+- [Pythia Official Website](https://pythia.org/)  
+  A Monte Carlo event generator for high-energy physics, supporting simulations of electron, proton, photon, and heavy ion collisions. :contentReference[oaicite:2]{index=2}
+
+- [Pythia 8.3 Manual](https://pythia.org/latest-manual/)  
+  Comprehensive documentation for Pythia 8.3, detailing its features, usage, and interfaces.
+
+- [FastJet Official Website](https://fastjet.fr/)  
+  A software package for jet finding in pp and e+e− collisions, including clustering algorithms and tools for jet manipulation. :contentReference[oaicite:9]{index=9}
+
+## Tutorials and Examples
+
+- [PythiaGenJets GitHub Repository](https://github.com/rappoccio/PythiaGenJets)  
+  A simple Pythia8 program that uses FastJet to generate events, precluster them with the anti-kt algorithm, and write events with the leading jet satisfying pt > 170 GeV to a ROOT TTree. :contentReference[oaicite:13]{index=13}
+
+- [Pythia 8.3 Worksheet](https://www.pythia.org/pdfdoc/worksheet8300.pdf)  
+  A tutorial designed to teach the basics of using the Pythia 8.3 event generator to study various physics aspects. :contentReference[oaicite:17]{index=17}
+
+- [MadGraph + Pythia Tutorial](https://sammeehan.com/2019-08-12-dmatlhc-tutorial/03-madgraphpythia/index.html)  
+  A hands-on tutorial demonstrating how to use MadGraph and Pythia for simulating dark matter interactions at the LHC. :contentReference[oaicite:21]{index=21}
+
+## Advanced Topics
+
+- [Jet Clustering and b-Tagging in FCC Analyses](https://indico.cern.ch/event/1019437/contributions/4329732/attachments/2233233/3784547/JetClustering_and_bTagging.pdf)  
+  A presentation on jet clustering interfaces and b-tagging strategies in Future Circular Collider analyses. :contentReference[oaicite:25]{index=25}
+
+- [Jet Finders in Pythia](https://pythia.org/latest-manual/JetFinders.html)  
+  Documentation on the built-in jet finders in Pythia, including ClusterJet, SlowJet, and CellJet.
+
+- [Jet Matching in Pythia](https://pythia.org/latest-manual/JetMatching.html)  
+  Information on parton-jet matching interfaces in Pythia, including MLM merging schemes.
+
+- [Jet Tagging Made Easy](https://link.springer.com/article/10.1140/epjc/s10052-020-8082-8)  
+  An article discussing simple and interpretable jet tagging methods using jet substructure variables. 
+
+## Video Resources
+
+- [Pythia Tutorials YouTube Playlist](https://www.youtube.com/playlist?list=PLLybgCU6QCGVVHyd0MhofUJYNzDifH-R9)  
+  A series of video tutorials covering various aspects of using Pythia for event generation. 
+
 
 
 
