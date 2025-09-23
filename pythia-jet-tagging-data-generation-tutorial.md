@@ -39,18 +39,7 @@ make main213
 ./main213
 ```
 
-### Basic Directory Structure
-```
-jet_tagging_project/
-├── src/
-│   ├── jet_generator.cc
-│   └── Makefile
-├── config/
-│   ├── qcd_jets.cmnd
-│   └── ttbar_jets.cmnd
-└── output/
-    └── data/
-```
+
 
 ## Basic Event Generation {#basic-event-generation}
 
@@ -722,5 +711,15 @@ print(f"Classification accuracy: {accuracy:.3f}")
 - PYTHIA 8.315 Manual
 - JetClass: A Large-Scale Dataset for Deep Learning in Jet Physics
 - Sample Main Programs in Pythia documentation
+
+[https://pythia.org/](https://pythia.org/)
+[https://pythia.org/latest-manual/](https://pythia.org/latest-manual/)
+[https://fastjet.fr/](https://fastjet.fr/)
+[https://indico.cern.ch/event/1019437/contributions/4329732/attachments/2233233/3784547/JetClustering_and_bTagging.pdf](https://indico.cern.ch/event/1019437/contributions/4329732/attachments/2233233/3784547/JetClustering_and_bTagging.pdf)
+[https://github.com/rappoccio/PythiaGenJets](https://github.com/rappoccio/PythiaGenJets)
+[https://www.pythia.org/pdfdoc/worksheet8300.pdf](https://www.pythia.org/pdfdoc/worksheet8300.pdf)
+
+
+
 
 This tutorial provides a comprehensive framework for generating jet tagging datasets with Pythia. The modular design allows for easy extension and customization based on specific research needs.
