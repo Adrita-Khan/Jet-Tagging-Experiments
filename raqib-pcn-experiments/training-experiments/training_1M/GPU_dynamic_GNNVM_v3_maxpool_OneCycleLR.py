@@ -30,7 +30,7 @@ parser.add_argument('--max_epochs', type=int, default=500, help='Maximum number 
 parser.add_argument('--batch_size', type=int, default=batch_size, help='Batch size (default: 512)')
 parser.add_argument('--device', type=str, default='cuda',choices=['cuda', 'cpu'], help='Device to use (default: cuda)')
 parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions-max-pooling', help=' (Classification level default: All)')
-parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-ReduceLROnPlateau', help='Model architecture name (default: PCN)')
+parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-OneCycleLR', help='Model architecture name (default: PCN)')
 parser.add_argument('--model_type', type=str, default='DGCNN', help='Model type (default: DGCNN)')
 parser.add_argument('--load_model', type=str, default='N', help='Load from save file (default: N)')
 parser.add_argument('--convergence_threshold', type=float, default=0.0001, help='Convergence threshold (default: 0.0001)')
@@ -571,10 +571,16 @@ wandb.init(
         "device": device,
         "convergence_threshold": convergence_threshold,
         "load_model": load,
-        "scheduler": "ReduceLROnPlateau",
-        "scheduler_factor": 0.5,
-        "scheduler_patience": 5,
-        "scheduler_min_lr": 1e-7
+        "scheduler": "OneCycleLR",
+        "scheduler_max_lr": 3e-3,
+        "scheduler_pct_start": 0.12,
+        "scheduler_epochs": 100,
+        "scheduler_div_factor": 25.0,
+        "scheduler_final_div_factor": 1e4,
+        "optimizer_strategy": "fast_warmup_long_annealing",
+        "target_convergence": "45-73_epochs",
+        "warmup_epochs": 12,
+        "peak_lr_by_epoch": 12
     }
 )
 
@@ -630,7 +636,7 @@ wandb.config.update({
     "hidden_feats": hidden_feats,
     "out_feats": out_feats,
     "model_save_file": modelSaveFile,
-    "architecture_type": "matrix_based_conv_max_pooling_with_scheduler",
+    "architecture_type": "matrix_based_conv_max_pooling_with_OneCycleLR",
     "feature_combination": "vertical_stacking",  # [batch_size, 4, 64] instead of [batch_size, 256]
     "conv1d_channels": "4->4->4",
     "pooling_type": "channel_max_pooling"
@@ -678,9 +684,21 @@ optimizer = torch.optim.AdamW([
     {'params': classifier.parameters()}
 ], lr=1e-3)
 
-# Add ReduceLROnPlateau scheduler
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=5, verbose=True, min_lr=1e-7
+# Calculate steps per epoch for OneCycleLR
+steps_per_epoch = len(trainLoader) if maxEpochs != 0 else 1
+
+# OneCycleLR - Optimized for 45-73 epoch convergence pattern
+# Strategy: Fast warmup (12 epochs) + long annealing for robust early stopping
+scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    optimizer, 
+    max_lr=3e-3,                    # Peak LR: 3x base rate for super-convergence
+    steps_per_epoch=steps_per_epoch, 
+    epochs=100,                     # Conservative total (handles up to 100 epochs)
+    pct_start=0.12,                 # 12% warmup (12 epochs) - quick peak
+    anneal_strategy='cos',          # Smooth cosine decay
+    div_factor=25.0,                # Start LR: 3e-3/25 = 1.2e-4 
+    final_div_factor=1e4,           # End LR: 3e-3/1e4 = 3e-7
+    verbose=True
 )
 
 trainingLossTracker = []
@@ -752,6 +770,9 @@ if maxEpochs > 0:
             loss.backward()
             optimizer.step()
             
+            # Step the scheduler (OneCycleLR steps per batch)
+            scheduler.step()
+            
             # Update running loss
             runningLoss += loss.item()
 
@@ -818,9 +839,6 @@ if maxEpochs > 0:
     
         validationAccuracy = valTotalCorrectPredictions / valTotalSamples
         validationAccuracyTracker.append(validationAccuracy)
-
-        # Step the scheduler with validation loss
-        scheduler.step(avgValidationLoss)
 
         # COMPLETE VALIDATION EPOCH CLEANUP
         torch.cuda.empty_cache()

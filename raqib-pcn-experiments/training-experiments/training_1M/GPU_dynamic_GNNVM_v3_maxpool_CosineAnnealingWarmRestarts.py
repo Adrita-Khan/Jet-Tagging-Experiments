@@ -30,7 +30,7 @@ parser.add_argument('--max_epochs', type=int, default=500, help='Maximum number 
 parser.add_argument('--batch_size', type=int, default=batch_size, help='Batch size (default: 512)')
 parser.add_argument('--device', type=str, default='cuda',choices=['cuda', 'cpu'], help='Device to use (default: cuda)')
 parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions-max-pooling', help=' (Classification level default: All)')
-parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-ReduceLROnPlateau', help='Model architecture name (default: PCN)')
+parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-CosineAnnealingWarmRestarts', help='Model architecture name (default: PCN)')
 parser.add_argument('--model_type', type=str, default='DGCNN', help='Model type (default: DGCNN)')
 parser.add_argument('--load_model', type=str, default='N', help='Load from save file (default: N)')
 parser.add_argument('--convergence_threshold', type=float, default=0.0001, help='Convergence threshold (default: 0.0001)')
@@ -571,10 +571,12 @@ wandb.init(
         "device": device,
         "convergence_threshold": convergence_threshold,
         "load_model": load,
-        "scheduler": "ReduceLROnPlateau",
-        "scheduler_factor": 0.5,
-        "scheduler_patience": 5,
-        "scheduler_min_lr": 1e-7
+        "scheduler": "CosineAnnealingWarmRestarts",
+        "scheduler_T_0": 25,
+        "scheduler_T_mult": 1,
+        "scheduler_eta_min": 1e-7,
+        "scheduler_restarts_at_epochs": "[25, 50, 75]",
+        "optimized_for_convergence": "45-73_epochs_PERFECT_restart_coverage"
     }
 )
 
@@ -630,7 +632,7 @@ wandb.config.update({
     "hidden_feats": hidden_feats,
     "out_feats": out_feats,
     "model_save_file": modelSaveFile,
-    "architecture_type": "matrix_based_conv_max_pooling_with_scheduler",
+    "architecture_type": "matrix_based_conv_max_pooling_with_CosineAnnealingWarmRestarts",
     "feature_combination": "vertical_stacking",  # [batch_size, 4, 64] instead of [batch_size, 256]
     "conv1d_channels": "4->4->4",
     "pooling_type": "channel_max_pooling"
@@ -678,9 +680,14 @@ optimizer = torch.optim.AdamW([
     {'params': classifier.parameters()}
 ], lr=1e-3)
 
-# Add ReduceLROnPlateau scheduler
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=5, verbose=True, min_lr=1e-7
+# Add CosineAnnealingWarmRestarts scheduler - Optimized for 45-73 epoch convergence
+# T_0=25: First restart at 25 epochs, T_mult=1: Equal cycles → 25, 50, 75 restarts
+scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    optimizer, 
+    T_0=25,                         # First restart cycle duration
+    T_mult=1,                       # Keep same cycle length (25 epochs each)  
+    eta_min=1e-7,                   # Minimum learning rate
+    verbose=True                    # Print LR changes
 )
 
 trainingLossTracker = []
@@ -819,8 +826,8 @@ if maxEpochs > 0:
         validationAccuracy = valTotalCorrectPredictions / valTotalSamples
         validationAccuracyTracker.append(validationAccuracy)
 
-        # Step the scheduler with validation loss
-        scheduler.step(avgValidationLoss)
+        # Step the scheduler (CosineAnnealingWarmRestarts steps per epoch with warm restarts)
+        scheduler.step()
 
         # COMPLETE VALIDATION EPOCH CLEANUP
         torch.cuda.empty_cache()

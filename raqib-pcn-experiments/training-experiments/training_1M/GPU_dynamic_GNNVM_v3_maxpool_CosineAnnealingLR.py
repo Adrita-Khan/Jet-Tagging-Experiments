@@ -30,7 +30,7 @@ parser.add_argument('--max_epochs', type=int, default=500, help='Maximum number 
 parser.add_argument('--batch_size', type=int, default=batch_size, help='Batch size (default: 512)')
 parser.add_argument('--device', type=str, default='cuda',choices=['cuda', 'cpu'], help='Device to use (default: cuda)')
 parser.add_argument('--classification_level', type=str, default='Dynamic_All_Interactions-max-pooling', help=' (Classification level default: All)')
-parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-ReduceLROnPlateau', help='Model architecture name (default: PCN)')
+parser.add_argument('--model_architecture', type=str, default=f'PCN-{batch_size}-CosineAnnealingLR', help='Model architecture name (default: PCN)')
 parser.add_argument('--model_type', type=str, default='DGCNN', help='Model type (default: DGCNN)')
 parser.add_argument('--load_model', type=str, default='N', help='Load from save file (default: N)')
 parser.add_argument('--convergence_threshold', type=float, default=0.0001, help='Convergence threshold (default: 0.0001)')
@@ -571,10 +571,10 @@ wandb.init(
         "device": device,
         "convergence_threshold": convergence_threshold,
         "load_model": load,
-        "scheduler": "ReduceLROnPlateau",
-        "scheduler_factor": 0.5,
-        "scheduler_patience": 5,
-        "scheduler_min_lr": 1e-7
+        "scheduler": "CosineAnnealingLR",
+        "scheduler_T_max": 75,
+        "scheduler_eta_min": 1e-7,
+        "optimized_for_convergence": "50-70_epochs"
     }
 )
 
@@ -630,7 +630,7 @@ wandb.config.update({
     "hidden_feats": hidden_feats,
     "out_feats": out_feats,
     "model_save_file": modelSaveFile,
-    "architecture_type": "matrix_based_conv_max_pooling_with_scheduler",
+    "architecture_type": "matrix_based_conv_max_pooling_with_cosine_scheduler",
     "feature_combination": "vertical_stacking",  # [batch_size, 4, 64] instead of [batch_size, 256]
     "conv1d_channels": "4->4->4",
     "pooling_type": "channel_max_pooling"
@@ -678,9 +678,9 @@ optimizer = torch.optim.AdamW([
     {'params': classifier.parameters()}
 ], lr=1e-3)
 
-# Add ReduceLROnPlateau scheduler
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=5, verbose=True, min_lr=1e-7
+# Add CosineAnnealingLR scheduler (optimized for typical convergence in 50-70 epochs)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    optimizer, T_max=75, eta_min=1e-7, verbose=True
 )
 
 trainingLossTracker = []
@@ -819,8 +819,8 @@ if maxEpochs > 0:
         validationAccuracy = valTotalCorrectPredictions / valTotalSamples
         validationAccuracyTracker.append(validationAccuracy)
 
-        # Step the scheduler with validation loss
-        scheduler.step(avgValidationLoss)
+        # Step the scheduler (CosineAnnealingLR steps automatically each epoch)
+        scheduler.step()
 
         # COMPLETE VALIDATION EPOCH CLEANUP
         torch.cuda.empty_cache()
@@ -897,16 +897,11 @@ if maxEpochs != 0:
     torch.save(bestStateDict, modelSaveFile)
 
 # Create directory for saving plots using versioned name
-# Create plots directory first, then model-specific subdirectory
-plots_dir = 'plots'
-model_plots_dir = f'{plots_dir}/{versioned_model_name}'
+imageSavePath = f'{versioned_model_name}'
 try:
-    os.makedirs(plots_dir, exist_ok=True)
-    os.makedirs(model_plots_dir, exist_ok=True)
-    imageSavePath = model_plots_dir
-    print(f"Created plots directory structure: {imageSavePath}")
+    os.mkdir(imageSavePath)
 except Exception as e:
-    print(f"Error creating directories: {e}")
+    print(e)
 
 if maxEpochs != 0:
     print("Creating training plots...")

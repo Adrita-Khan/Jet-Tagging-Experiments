@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
 
-batch_size = 1024
+batch_size = 256
 
 # Add argumnet parser
 parser = argparse.ArgumentParser(description='Dynamic Multi-Graph PCN Training')
