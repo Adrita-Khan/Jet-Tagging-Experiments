@@ -81,8 +81,8 @@ For any inquiries or feedback, please contact:
 
 | Name | Email | LinkedIn | Twitter |
 |------|-------|----------|---------|
-| **Adrita Khan** | [adrita.khan.official@gmail.com](mailto:adrita.khan.official@gmail.com) | [LinkedIn](https://www.linkedin.com/in/adrita-khan) | [Twitter](https://x.com/Adrita_) |
-| **Md Raqibul Islam** | [raqibul.islam.academic@gmail.com](mailto:raqibul.islam.academic@gmail.com) | [LinkedIn](https://www.linkedin.com/in/raqib03/) | [Twitter](https://x.com/raqib_03) |
+| **Adrita Khan** | [Email](mailto:adrita.khan.official@gmail.com) | [LinkedIn](https://www.linkedin.com/in/adrita-khan) | [Twitter](https://x.com/Adrita_) |
+| **Md Raqibul Islam** | [Email](mailto:raqibul.islam.academic@gmail.com) | [LinkedIn](https://www.linkedin.com/in/raqib03/) | [Twitter](https://x.com/raqib_03) |
 
 ---
 
