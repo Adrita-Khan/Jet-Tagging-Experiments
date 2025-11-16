@@ -19,12 +19,13 @@ We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating 
 
 ## Physics-Motivated Interaction Features
 
-| Feature | Description |
-|---------|-------------|
-| `ln Δ` | Logarithm of angular separation |
-| `ln kT` | Logarithm of transverse momentum |
-| `ln z` | Logarithm of momentum fraction |
-| `ln m²` | Logarithm of squared invariant mass |
+| Feature   | Description                                    |
+|-----------|------------------------------------------------|
+| `ln Δ`    | Logarithm of angular separation: $\ln \Delta R = \ln \sqrt{(\Delta\eta)^2 + (\Delta\phi)^2}$ |
+| `ln kT`   | Logarithm of transverse momentum: $\ln k_T = \ln \min(p_{T,j}, p_{T,k}) \cdot \Delta R$ |
+| `ln z`    | Logarithm of momentum fraction: $\ln z = \ln \min(p_{T,i}, p_{T,j})/(p_{T,i} + p_{T,j})$ |
+| `ln m²`   | Logarithm of squared invariant mass: $\ln m_{ij}^2 = \ln \left( (E_i + E_j)^2 - |\mathbf{p}_i + \mathbf{p}_j|^2 \right)$ |
+
 
 These features bias the model toward fine-grained, QCD-informed inter-particle dependencies.
 
