@@ -22,7 +22,7 @@ We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating 
 ## Physics-Motivated Interaction Features
 
 | Feature | Formula | Description |
-|--------|---------|-------------|
+|---------|---------|-------------|
 | $\Delta$ | $\Delta = \sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}$ | Angular separation in rapidity–azimuth plane |
 | $k_T$ | $k_T = \min(p_{T,a}, p_{T,b}) \cdot \Delta$ | Transverse momentum scale (soft / collinear observable) |
 | $z$ | $z = \frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}$ | Momentum fraction (energy-sharing parameter) |
