@@ -12,7 +12,7 @@
 
 ## Overview
 
-This repository focuses on **jet tagging**—classifying collimated sprays of particles (jets) from high-energy collisions and associating them with their originating particles. It is an ongoing project of the [Center for Computational and Data Sciences (CCDS)](https://ccds.ai/).
+This repository focuses on **jet tagging**—classifying collimated sprays of particles (jets) from high-energy collisions and associating them with their originating particles. It is an ongoing project of the [Center for Computational and Data Sciences (CCDS)](https://ccds.ai/) with the [Department of Theoretical Physics, University of Dhaka](https://www.du.ac.bd/body/MissionVision/TPHY), with strong ties to [CERN](https://home.cern/).
 
 We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating physics-motivated interaction features derived from particle 4-momentum vectors and inspired by the Lund jet plane. This approach improves discrimination capability for jet classification tasks using the **JetClass dataset**.
 
