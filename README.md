@@ -21,27 +21,28 @@ We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating 
  
 ## Physics-Motivated Interaction Features
 
-| Feature       | Formula                                                                                           | Description                                              |
-|---------------|---------------------------------------------------------------------------------------------------|----------------------------------------------------------|
-| $\Delta$      | $\Delta = \sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}$                                            | Angular separation in rapidity–azimuth plane             |
-| $k_T$         | $k_T = \min(p_{T,a}, p_{T,b}) \cdot \Delta$                                                      | Transverse momentum scale (soft / collinear observable)  |
-| $z$           | $z = \frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}$                                          | Momentum fraction (energy-sharing parameter)             |
-| $m^2$         | $m^2 = (E_a + E_b)^2 - \|\mathbf{p}_a + \mathbf{p}_b\|^2$                                       | Squared invariant mass of the particle pair              |
+| Feature | Formula | Description |
+|--------|---------|-------------|
+| $\Delta$ | $\Delta = \sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}$ | Angular separation in rapidity–azimuth plane |
+| $k_T$ | $k_T = \min(p_{T,a}, p_{T,b}) \cdot \Delta$ | Transverse momentum scale (soft / collinear observable) |
+| $z$ | $z = \frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}$ | Momentum fraction (energy-sharing parameter) |
+| $m^2$ | $m^2 = (E_a + E_b)^2 - \|\mathbf{p}_a + \mathbf{p}_b\|^2$ | Squared invariant mass of the particle pair |
 
 **Notation and Definitions:**  
 - $y_i$ is the rapidity of particle $i$  
 - $\phi_i$ is the azimuthal angle of particle $i$  
 - $p_{T,i} = \sqrt{p_{x,i}^2 + p_{y,i}^2}$ is the transverse momentum of particle $i$  
-- ${p}_i = (p_{x,i}, p_{y,i}, p_{z,i})$ is the momentum 3-vector of particle $i$
+- $\mathbf{p}_i = (p_{x,i}, p_{y,i}, p_{z,i})$ is the momentum 3-vector of particle $i$  
 - $E_i$ is the energy of particle $i$  
 - $\|\cdot\|$ denotes the Euclidean norm  
 
 Since these variables typically have a long-tail distribution, we take the logarithm and use $(\ln \Delta, \ln k_T, \ln z, \ln m^2)$ as the interaction features for each particle pair.
 
 **Physical Motivation:**  
-These features capture key kinematic properties of particle interactions that are relevant for jet substructure and tagging tasks. The logarithmic transformation addresses the long-tail distributions of these variables in high-energy physics, making them more suitable for machine-learning models. This choice of features follows the work of Frédéric A. Dreyer & Huilin Qu (2021). For more details see [*Jet tagging in the Lund plane with graph networks*](https://arxiv.org/abs/2012.08526).  
+These features capture key kinematic properties of particle interactions that are relevant for jet substructure and tagging tasks. The logarithmic transformation addresses the long-tail distributions of these variables in high-energy physics, making them more suitable for machine-learning models. This choice of features follows the work of Frédéric A. Dreyer & Huilin Qu (2021). For details see *Jet tagging in the Lund plane with graph networks*: https://arxiv.org/abs/2012.08526.
 
 These features bias the model toward fine-grained, QCD-informed inter-particle dependencies.
+
 
 ## Key Features
 
