@@ -32,7 +32,7 @@ We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating 
 - $y_i$ is the rapidity of particle $i$  
 - $\phi_i$ is the azimuthal angle of particle $i$  
 - $p_{T,i} = \sqrt{p_{x,i}^2 + p_{y,i}^2}$ is the transverse momentum of particle $i$  
-- $\mathbf{p}_i = (p_{x,i}, p_{y,i}, p_{z,i})$ is the momentum 3-vector of particle $i$  
+- $\mathbf{p}_i = (p_{x,i}, p_{y,i}, p_{z,i})$ is the momentum 3-vector of particle $i$
 - $E_i$ is the energy of particle $i$  
 - $\|\cdot\|$ denotes the Euclidean norm  
 
