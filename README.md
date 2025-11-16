@@ -70,12 +70,17 @@ pip install -r requirements.txt
 ### Repository Structure
 
 ```
-jet-tagging/
-├── data/          # JetClass dataset
-├── notebooks/     # Analysis & training notebooks
-├── src/           # Model & feature integration
-├── models/        # Saved checkpoints
-└── requirements.txt
+raqib-pcn-experiments/
+├── raqib-pcn-experiments/   # Main experiment folder
+├── .gitattributes           # Git configuration file
+├── LICENSE                  # License file
+├── README.md                # Project overview and instructions
+├── pythia-data-gen.md       # Data generation tutorial for Pythia
+├── pythia-installation.md   # Installation guide for Pythia
+├── pythia-jet-tagging-data-generation-tutorial.md  # Jet tagging data generation tutorial
+├── pythia-python-guide.md   # Python guide for Pythia
+└── requirements.txt         # List of dependencies
+
 ```
 
 ---
