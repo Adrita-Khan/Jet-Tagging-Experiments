@@ -19,31 +19,29 @@ We enhance the **Particle Chebyshev Network (PCN)** architecture by integrating 
 
 
  
-# Physics‑Motivated Interaction Features
+## Physics-Motivated Interaction Features
 
 | Feature       | Formula                                                                                           | Description                                              |
 |---------------|---------------------------------------------------------------------------------------------------|----------------------------------------------------------|
-| \(\Delta\)      | \(\Delta = \sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}\)                                            | Angular separation in rapidity–azimuth plane             |
-| \(\ln \Delta\)  | \(\ln(\Delta) = \ln\!\left(\sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}\right)\)                    | Logarithm of angular separation between particles        |
-| \(k_T\)         | \(k_T = \min(p_{T,a}, p_{T,b})\,\Delta\)                                                           | Transverse momentum scale (soft / collinear observable)  |
-| \(\ln k_T\)     | \(\ln(k_T) = \ln\!\left(\min(p_{T,a}, p_{T,b})\,\Delta\right)\)                                   | Logarithm of transverse momentum scale                   |
-| \(z\)           | \(z = \frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}\)                                          | Momentum fraction (energy‑sharing parameter)             |
-| \(\ln z\)       | \(\ln(z) = \ln\!\left(\frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}\right)\)                   | Logarithm of momentum fraction                           |
-| \(m^2\)         | \(m^2 = (E_a + E_b)^2 - \|\mathbf{p}_a + \mathbf{p}_b\|^2\)                                       | Squared invariant mass of the particle pair              |
-| \(\ln m^2\)     | \(\ln(m^2) = \ln\!\left((E_a + E_b)^2 - \|\mathbf{p}_a + \mathbf{p}_b\|^2\right)\)                | Logarithm of the squared invariant mass                  |
+| $\Delta$      | $\Delta = \sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}$                                            | Angular separation in rapidity–azimuth plane             |
+| $\ln \Delta$  | $\ln(\Delta) = \ln\left(\sqrt{(y_a - y_b)^2 + (\phi_a - \phi_b)^2}\right)$                      | Logarithm of angular separation between particles        |
+| $k_T$         | $k_T = \min(p_{T,a}, p_{T,b}) \cdot \Delta$                                                      | Transverse momentum scale (soft / collinear observable)  |
+| $\ln k_T$     | $\ln(k_T) = \ln\left(\min(p_{T,a}, p_{T,b}) \cdot \Delta\right)$                                | Logarithm of transverse momentum scale                   |
+| $z$           | $z = \frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}$                                          | Momentum fraction (energy-sharing parameter)             |
+| $\ln z$       | $\ln(z) = \ln\left(\frac{\min(p_{T,a}, p_{T,b})}{p_{T,a} + p_{T,b}}\right)$                     | Logarithm of momentum fraction                           |
+| $m^2$         | $m^2 = (E_a + E_b)^2 - \|\mathbf{p}_a + \mathbf{p}_b\|^2$                                       | Squared invariant mass of the particle pair              |
+| $\ln m^2$     | $\ln(m^2) = \ln\left((E_a + E_b)^2 - \|\mathbf{p}_a + \mathbf{p}_b\|^2\right)$                  | Logarithm of the squared invariant mass                  |
 
-## Notation and Definitions
+**Notation and Definitions:**  
+- $y_i$ is the rapidity of particle $i$  
+- $\phi_i$ is the azimuthal angle of particle $i$  
+- $p_{T,i} = \sqrt{p_{x,i}^2 + p_{y,i}^2}$ is the transverse momentum of particle $i$  
+- $\mathbf{p}_i = (p_{x,i}, p_{y,i}, p_{z,i})$ is the momentum 3-vector of particle $i$  
+- $E_i$ is the energy of particle $i$  
+- $\|\cdot\|$ denotes the Euclidean norm  
 
-- \(y_i\) is the rapidity of particle \(i\)
-- \(\phi_i\) is the azimuthal angle of particle \(i\)
-- \(p_{T,i} = \sqrt{p_{x,i}^2 + p_{y,i}^2}\) is the transverse momentum of particle \(i\)
-- \(\mathbf{p}_i = (p_{x,i},\,p_{y,i},\,p_{z,i})\) is the momentum 3‑vector of particle \(i\)
-- \(E_i\) is the energy of particle \(i\)
-- \(\|\cdot\|\) denotes the Euclidean norm
-
-## Physical Motivation
-
-These features capture key kinematic properties of particle interactions that are relevant for jet substructure and tagging tasks. The logarithmic transformation addresses the long‑tail distributions of these variables in high‑energy physics, making them more suitable for machine‑learning models. This choice of features follows the work of Frédéric A. Dreyer & Huilin Qu (2021). For more details see [*Jet tagging in the Lund plane with graph networks*](https://arxiv.org/abs/2012.08526).
+**Physical Motivation:**  
+These features capture key kinematic properties of particle interactions that are relevant for jet substructure and tagging tasks. The logarithmic transformation addresses the long-tail distributions of these variables in high-energy physics, making them more suitable for machine-learning models. This choice of features follows the work of Frédéric A. Dreyer & Huilin Qu (2021). For more details see [*Jet tagging in the Lund plane with graph networks*](https://arxiv.org/abs/2012.08526).  
 
 These features bias the model toward fine-grained, QCD-informed inter-particle dependencies.
 
